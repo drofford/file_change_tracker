@@ -1,0 +1,7 @@
+*.db
+?
+*.7z
+*.gz
+*.tgz
+*.pyc
+__pycache__/
