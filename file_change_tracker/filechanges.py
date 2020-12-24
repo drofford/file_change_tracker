@@ -14,19 +14,21 @@ def connectdb():
         dbfile = getbasefile() + '.db'
         print("DB file name is \"{}\"".format(dbfile))
         conn = sqlite3.connect(dbfile, timeout=2)
-        cursor = conn.cursor()
-
-        cursor.execute("create table if not exists master (id integer primary key, filename text, last_accessed datetime)")
-        conn.commit()
-        
         return conn
     except Exception as ex:
         sys.stderr.write("Error: exception {} caught".format(ex))
         exit(1)
-    
-def main():
-    conn = connectdb()
-    print("Connected to database with connection = {}".format(conn))
 
-if __name__ == "__main__":
-    main()
+def tableexists(table):
+    """Checks if a SQLite DB Table exists"""
+    result = False
+    try:
+        conn = connectdb()
+        if not conn is None:
+                   query = "SELECT name … AND name=?" # Finish this query ...
+                   args = (table,)
+                   result = corecursor(conn, query, args)
+	      # To be continued ...
+    except Exception as ex:
+        sys.stderr.write("Error: exception {} caught".format(ex))
+        exit(1)
