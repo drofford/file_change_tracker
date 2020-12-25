@@ -22,6 +22,7 @@ def connectdb() -> sqlite3.Connection:
         return conn
     except Exception as ex:
         sys.stderr.write("connectdb: Error: exception {} caught\n".format(ex))
+        sys.stderr.flush()
         exit(1)
 
 def tableexists(table: str) -> bool:
@@ -36,40 +37,54 @@ def tableexists(table: str) -> bool:
             args = (table,)
             
             result = corecursor(conn, query)#, args)
-            print("result = {}".format(results))
+            print("result = {}".format(result))
 
             return False
 
     except Exception as ex:
-        print("tableexists: exception of type \"{}\" caught".format(type(ex))
-        print("tableexists: exception \"{}\" caught".format(ex))
+        sys.stderr.write("tableexists: exception of type \"{}\" caught".format(type(ex)))
+        sys.stderr.write("tableexists: exception \"{}\" caught".format(ex))
+        sys.stderr.flush()
         return False
 
-def corecursor(conn: object , query: str, args: list=None) -> bool:
+def corecursor(conn: sqlite3.Connection , query: str, args: list=None) -> bool:
     try:
         cursor = conn.cursor()
         result = cursor.execute(query, args)
-        return result
+        print("corecursor: result = {}".format(result))
+        return True
+    except sqlite3.OperationalError as ex:
+        sys.stderr.write("corecursor[1]: exception of type \"{}\" caught\n".format(type(ex)))
+        sys.stderr.write("corecursor[1]: Error: exception \"{}\" caught\n".format(ex))
+        return False
     except Exception as ex:
-        sys.stderr.write("corecursor: Error: exception {} caught".format(ex))
+        sys.stderr.write("corecursor[2]: exception of type \"{}\" caught\n".format(type(ex)))
+        sys.stderr.write("corecursor[2]: Error: exception \"{}\" caught\n".format(ex))
+        sys.stderr.flush()
         exit(1)
 
-def createhashtable() -> bool:
+def createhashtable(table: str="files") -> bool:
     result = False
-    query = "CREATE TABLE files if not exist (id integer primary key, file_name text)"
+    query = "CREATE TABLE {} if not exist (id integer primary key, file_name text)".format(table)
     try:
         conn = connectdb()
         if conn is not None:
-            if not tableexists('files'):
+            if tableexists(table):
+                print("createhashtable: table {} does exist".format(table))
+            else:
+                print("createhashtable: table {} does not exist (yet)".format(table))
                 try:
                     cursor = conn.cursor()
-                    cursor.execute(query)
+                    result = cursor.execute(query)
+                    print("createhashtable: result = {}".format(result))
                     # To be continued ...
                 except Exception as ex:
                     sys.stderr.write("createhashtable[1]: Error: exception \"{}\" caught\n".format(ex))
+                    sys.stderr.flush()
                     exit(1)
     except Exception as ex:
         sys.stderr.write("createhashtable[2]: Error: exception \"{}\" caught\n".format(ex))
+        sys.stderr.flush()
         exit(1)
     return result
 
@@ -77,6 +92,8 @@ def main():
     FILE_TABLE_NAME = "files"
     table_exists = tableexists(FILE_TABLE_NAME)
     print("main: table \"{}\" does{} exist\n".format(FILE_TABLE_NAME, "" if table_exists else " not")) 
+    if not table_exists:
+        result = createhashtable(FILE_TABLE_NAME)
 
 #    cursor = conn.cursor()
 #
