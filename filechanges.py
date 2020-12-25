@@ -41,17 +41,18 @@ def tableexists(table: str) -> bool:
             return False
 
     except Exception as ex:
+        print("tableexists: exception of type \"{}\" caught".format(type(ex))
         print("tableexists: exception \"{}\" caught".format(ex))
         return False
 
 def corecursor(conn: object , query: str, args: list=None) -> bool:
-    # try:
-    cursor = conn.cursor()
-    result = cursor.execute(query, args)
-    return result
-    # except Exception as ex:
-    #     sys.stderr.write("corecursor: Error: exception {} caught".format(ex))
-    #     exit(1)
+    try:
+        cursor = conn.cursor()
+        result = cursor.execute(query, args)
+        return result
+    except Exception as ex:
+        sys.stderr.write("corecursor: Error: exception {} caught".format(ex))
+        exit(1)
 
 def createhashtable() -> bool:
     result = False
