@@ -7,6 +7,7 @@ authors = ["Garry Offord <drofford@icloud.com>"]
 [tool.poetry.dependencies]
 python = "^3.9"
 openpyxl = "^3.0.5"
+daiquiri = "^3.0.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
