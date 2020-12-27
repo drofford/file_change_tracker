@@ -1,9 +1,19 @@
 import os
 import os.path
 import sqlite3
+import tempfile
+import time
 
 from filechanges import __version__
-from filechanges.filechanges import connectdb, createhashtable, getbasefile, tableexists
+from filechanges.filechanges import (
+    connectdb,
+    createhashtable,
+    getbasefile,
+    tableexists,
+    getfileext,
+    getmoddate,
+    debug,
+)
 
 
 def rm_db_file() -> str:
@@ -58,3 +68,25 @@ def test_createhashtable():
 
     assert createhashtable("sparky")
     assert not createhashtable("sparky")
+
+
+def test_getfileext():
+    assert getfileext("abc.txt") == "txt"
+    assert getfileext("/tmp/abc.txt") == "txt"
+    assert getfileext("/tmp/a/b/c/def.txt") == "txt"
+    assert getfileext("abc") == ""
+    assert getfileext(".abc") == ""
+    assert getfileext(".abc.def") == "def"
+
+
+def test_getmoddate():
+    assert getmoddate("xyz.txt") is None
+
+    with tempfile.TemporaryFile(mode="w+t") as tf:
+        debug(f"{tf.name=}")
+
+        moddate = getmoddate(tf.name)
+        debug(f"{type(moddate)=}, {moddate=}")
+
+        assert isinstance(moddate, float)
+        assert moddate > 0.0

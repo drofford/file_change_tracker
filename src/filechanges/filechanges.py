@@ -80,6 +80,7 @@ def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
 
 
 def tableexists(table_name: str) -> bool:
+    """Checks to see if a table exists"""
     result = False
     conn = connectdb()
     if conn is not None:
@@ -96,6 +97,7 @@ def tableexists(table_name: str) -> bool:
 
 
 def createhashtable(table: str = "files") -> bool:
+    """Creates the named table if it does not exist"""
     result = False
     try:
         conn = connectdb()
@@ -124,3 +126,41 @@ def createhashtable(table: str = "files") -> bool:
 
     debug(f"returning {result}")
     return result
+
+
+def getfileext(fname: str) -> str:
+    """Get the file name extension.
+
+    Extension does NOT include the dot. Dotfiles like ".bashrc" are handled as
+    expected, with the filename = ".bashrc" and the extension as "".
+    """
+    return os.path.splitext(os.path.basename(fname))[1][1:]
+
+
+def haschanged(fname: str, md5: str) -> bool:
+    """Checks if a file has changed"""
+    result = False
+    # Call md5indb ...
+    # if the file’s MD5 hash has changed...
+    # Update the hash table ...
+    # else:
+    # Setup the hash table ...
+    return result
+
+
+def getmoddate(fname: str) -> object:
+    """Get file modified date"""
+    try:
+        debug(f"{fname=}")
+        mtime = os.path.getmtime(fname)
+        debug(f"{type(mtime)=}, {mtime=}")
+        return mtime
+    # To be continued ...
+    except FileNotFoundError as ex:
+        debug(f'no such file: "{fname}"')
+
+    except Exception as ex:
+        error(f'caught exception of type {type(ex)}: "{ex}", program abending')
+        exit(1)
+
+    return None
