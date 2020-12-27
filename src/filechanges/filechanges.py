@@ -12,9 +12,11 @@ level = LOG.DEBUG if os.getenv("DEBUG", "") == "Y" else LOG.INFO
 LOG.basicConfig(format="%(asctime)s %(levelname)s : %(message)s", level=level)
 logger = LOG.getLogger()
 
+
 def debug(msg):
     f = inspect.currentframe()
     logger.debug(f"{f.f_back.f_code.co_name}[{f.f_back.f_lineno}]: {msg}")
+
 
 def info(msg):
     f = inspect.currentframe()
@@ -57,9 +59,7 @@ def tableexists(table: str) -> bool:
     try:
         conn = connectdb()
         if conn is not None:
-            debug(
-                "Connected to database with connection = {}".format(conn)
-            )
+            debug("Connected to database with connection = {}".format(conn))
 
             query = f"SELECT id from {table}"  # Finish this query ...
             debug(f"{query=}")
@@ -87,14 +87,10 @@ def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
         debug(f"result = {result}, returning True")
         return True
     except sqlite3.OperationalError as ex:
-        debug(
-            f'caught exception of type {type(ex)}: "{ex}", returning False'
-        )
+        debug(f'caught exception of type {type(ex)}: "{ex}", returning False')
         return False
     except Exception as ex:
-        error(
-            f'caught exception of type {type(ex)}: "{ex}", returning None'
-        )
+        error(f'caught exception of type {type(ex)}: "{ex}", returning None')
         # exit(1)
         return None
 
@@ -112,8 +108,7 @@ def createhashtable(table: str = "files") -> bool:
                 debug("table {} does exist".format(table))
             else:
                 debug("BBB.2.A")
-                debug("table {} does not exist (yet)".format(table)
-                )
+                debug("table {} does not exist (yet)".format(table))
                 QUERY = (
                     "CREATE TABLE IF NOT EXISTS "
                     + table
@@ -134,20 +129,12 @@ def createhashtable(table: str = "files") -> bool:
                     result = True
                     debug("BBB.2.F")
                 except sqlite3.OperationalError as ex:
-                    debug(
-                        'exception of type "{}" caught: {}'.format(
-                            type(ex), ex
-                        )
-                    )
+                    debug('exception of type "{}" caught: {}'.format(type(ex), ex))
                 except Exception as ex:
-                    error(
-                        'exception "{}" caught'.format(ex)
-                    )
+                    error('exception "{}" caught'.format(ex))
                     exit(1)
     except sqlite3.OperationalError as ex:
-        debug(
-            'exception of type "{}" caught: {}'.format(type(ex), ex)
-        )
+        debug('exception of type "{}" caught: {}'.format(type(ex), ex))
     except Exception as ex:
         error('exception "{}" caught'.format(ex))
         exit(1)

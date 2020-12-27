@@ -47,7 +47,6 @@ def test_connectdb_extant():
     # assert False
 
 
-
 def test_tableexists_false():
     test_connectdb_new()
 
