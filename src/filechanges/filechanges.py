@@ -1,4 +1,5 @@
 import daiquiri
+import hashlib
 import inspect
 import logging as LOG
 import os
@@ -164,3 +165,17 @@ def getmoddate(fname: str) -> object:
         exit(1)
 
     return None
+
+def md5short(fname):
+    """Get md5 file hash tag"""
+
+    data = open(fname, "rb").read()
+    debug(f"read {len(data)} {type(data)} from \"{fname}\"")
+
+    md = hashlib.new("md5")
+    md.update(data)
+    md5val = md.hexdigest()
+
+    debug(f"MD5 for \"{fname=}\" is {md5val}")
+
+    return md5val

@@ -8,11 +8,12 @@ from filechanges import __version__
 from filechanges.filechanges import (
     connectdb,
     createhashtable,
+    debug,
     getbasefile,
-    tableexists,
     getfileext,
     getmoddate,
-    debug,
+    md5short,
+    tableexists,
 )
 
 
@@ -80,7 +81,7 @@ def test_getfileext():
 
 
 def test_getmoddate():
-    assert getmoddate("xyz.txt") is None
+    assert getmoddate("noname.txt") is None
 
     with tempfile.TemporaryFile(mode="w+t") as tf:
         debug(f"{tf.name=}")
@@ -90,3 +91,19 @@ def test_getmoddate():
 
         assert isinstance(moddate, float)
         assert moddate > 0.0
+
+
+def test_md5short():
+    test_txt_file_name = os.path.join("test", "data", "file1.txt")
+    test_md5_file_name = test_txt_file_name + ".md5"
+
+    assert os.path.isfile(test_txt_file_name)
+    assert os.path.isfile(test_md5_file_name)
+
+    computed_md5 = md5short(test_txt_file_name)
+    debug(f"computed MD5 = {computed_md5}")
+
+    actual_md5 = open(test_md5_file_name, "rt").read().rstrip()
+    debug(f"actual   MD5 = {actual_md5}")
+    
+    assert computed_md5 == actual_md5
