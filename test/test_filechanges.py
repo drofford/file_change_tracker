@@ -106,8 +106,9 @@ def test_md5short():
 
     actual_md5 = open(test_md5_file_name, "rt").read().rstrip()
     debug(f"actual   MD5 = {actual_md5}")
-    
+
     assert computed_md5 == actual_md5
+
 
 def test_haschanged():
     test_txt_file_name = os.path.join("test", "data", "file1.txt")
@@ -117,4 +118,3 @@ def test_haschanged():
 
     adjusted_md5 = "x" + computed_md5[1:]
     assert haschanged(test_txt_file_name, adjusted_md5)
-

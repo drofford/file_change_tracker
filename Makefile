@@ -4,6 +4,9 @@ targets:
 clean:
 	@find . -depth \( -name \*.pyc -o -name __pycache__ \) -exec /bin/rm -fr {} \;
 
+format:
+	@black `find . -name \*.py`
+
 pytest:
 	@PYTHONPATH=src poetry run pytest -v
 

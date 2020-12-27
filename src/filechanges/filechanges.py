@@ -143,13 +143,13 @@ def haschanged(fname: str, md5: str) -> bool:
     result = False
 
     calc_md5 = md5short(fname)
-    debug(f"calculated MD5 for \"{fname}\" is {calc_md5}")
-    debug(f"provided   MD5 for \"{fname}\" is {md5}")
+    debug(f'calculated MD5 for "{fname}" is {calc_md5}')
+    debug(f'provided   MD5 for "{fname}" is {md5}')
     if md5 != calc_md5:
-        debug(f"file \"{fname}\" has changed")
+        debug(f'file "{fname}" has changed')
         result = True
     else:
-        debug(f"file \"{fname}\" has not changed")
+        debug(f'file "{fname}" has not changed')
 
     # Call md5indb ...
     # if the file’s MD5 hash has changed...
@@ -175,16 +175,17 @@ def getmoddate(fname: str) -> object:
 
     return None
 
+
 def md5short(fname):
     """Get md5 file hash tag"""
 
     data = open(fname, "rb").read()
-    debug(f"read {len(data)} {type(data)} from \"{fname}\"")
+    debug(f'read {len(data)} {type(data)} from "{fname}"')
 
     md = hashlib.new("md5")
     md.update(data)
     md5val = md.hexdigest()
 
-    debug(f"MD5 for \"{fname=}\" is {md5val}")
+    debug(f'MD5 for "{fname=}" is {md5val}')
 
     return md5val
