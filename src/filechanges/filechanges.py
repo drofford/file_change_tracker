@@ -59,8 +59,6 @@ def tableexists(table: str) -> bool:
     try:
         conn = connectdb()
         if conn is not None:
-            debug("Connected to database with connection = {}".format(conn))
-
             query = f"SELECT id from {table}"  # Finish this query ...
             debug(f"{query=}")
 
@@ -76,58 +74,40 @@ def tableexists(table: str) -> bool:
 
 def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
     try:
-        debug(f"A: {conn=}, {query=}")
         cursor = conn.cursor()
-        debug(f"B: {cursor=}")
         if args is None:
             result = cursor.execute(query)
         else:
             result = cursor.execute(query, args)
-        debug(f"C")
         debug(f"result = {result}, returning True")
         return True
     except sqlite3.OperationalError as ex:
         debug(f'caught exception of type {type(ex)}: "{ex}", returning False')
         return False
     except Exception as ex:
-        error(f'caught exception of type {type(ex)}: "{ex}", returning None')
-        # exit(1)
-        return None
+        error(f'caught exception of type {type(ex)}: "{ex}", program abending')
+        exit(1)
 
 
 def createhashtable(table: str = "files") -> bool:
     result = False
     try:
-        debug("AAA.1")
         conn = connectdb()
-        debug("AAA.2")
         if conn is not None:
-            debug("BBB.1")
             if tableexists(table):
-                debug("BBB.1.A")
-                debug("table {} does exist".format(table))
+                debug(f"table {table} does exist")
             else:
-                debug("BBB.2.A")
-                debug("table {} does not exist (yet)".format(table))
-                QUERY = (
-                    "CREATE TABLE IF NOT EXISTS "
-                    + table
-                    + " (id integer primary key, file_name text)"
-                )
-                debug(f"Query = {QUERY}")
+                debug(f"table {table} does not exist")
+                query = f"CREATE TABLE IF NOT EXISTS {table} (id integer primary key, file_name text)"
+                debug(f"Create table statement = {query}")
 
                 args = (table,)
                 try:
-                    debug("BBB.2.B")
                     cursor = conn.cursor()
-                    debug("BBB.2.C")
-                    result = cursor.execute(QUERY)
-                    debug("BBB.2.D")
+                    result = cursor.execute(query)
                     conn.commit()
-                    debug("BBB.2.E")
                     debug("result = {}".format(result))
                     result = True
-                    debug("BBB.2.F")
                 except sqlite3.OperationalError as ex:
                     debug('exception of type "{}" caught: {}'.format(type(ex), ex))
                 except Exception as ex:
@@ -136,28 +116,6 @@ def createhashtable(table: str = "files") -> bool:
     except sqlite3.OperationalError as ex:
         debug('exception of type "{}" caught: {}'.format(type(ex), ex))
     except Exception as ex:
-        error('exception "{}" caught'.format(ex))
+        error(f'caught exception of type {type(ex)}: "{ex}", program abending')
         exit(1)
-    debug(f"CCC: result = {result}")
     return result
-
-
-def main():
-    FILE_TABLE_NAME = "files"
-    table_exists = tableexists(FILE_TABLE_NAME)
-    debug(
-        'table "{}" does{} exist'.format(
-            FILE_TABLE_NAME, "" if table_exists else " not"
-        )
-    )
-    if not table_exists:
-        result = createhashtable(FILE_TABLE_NAME)
-
-
-#    cursor = conn.cursor()
-#
-#    cursor.execute("create table if not exists master (id integer primary key, filename text, last_accessed datetime)")
-#    conn.commit()
-
-if __name__ == "__main__":
-    main()
