@@ -12,6 +12,7 @@ from filechanges.filechanges import (
     getbasefile,
     getfileext,
     getmoddate,
+    haschanged,
     md5short,
     tableexists,
 )
@@ -107,3 +108,13 @@ def test_md5short():
     debug(f"actual   MD5 = {actual_md5}")
     
     assert computed_md5 == actual_md5
+
+def test_haschanged():
+    test_txt_file_name = os.path.join("test", "data", "file1.txt")
+    computed_md5 = md5short(test_txt_file_name)
+
+    assert not haschanged(test_txt_file_name, computed_md5)
+
+    adjusted_md5 = "x" + computed_md5[1:]
+    assert haschanged(test_txt_file_name, adjusted_md5)
+

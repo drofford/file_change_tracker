@@ -141,6 +141,16 @@ def getfileext(fname: str) -> str:
 def haschanged(fname: str, md5: str) -> bool:
     """Checks if a file has changed"""
     result = False
+
+    calc_md5 = md5short(fname)
+    debug(f"calculated MD5 for \"{fname}\" is {calc_md5}")
+    debug(f"provided   MD5 for \"{fname}\" is {md5}")
+    if md5 != calc_md5:
+        debug(f"file \"{fname}\" has changed")
+        result = True
+    else:
+        debug(f"file \"{fname}\" has not changed")
+
     # Call md5indb ...
     # if the file’s MD5 hash has changed...
     # Update the hash table ...
@@ -156,7 +166,6 @@ def getmoddate(fname: str) -> object:
         mtime = os.path.getmtime(fname)
         debug(f"{type(mtime)=}, {mtime=}")
         return mtime
-    # To be continued ...
     except FileNotFoundError as ex:
         debug(f'no such file: "{fname}"')
 
