@@ -8,6 +8,7 @@ from filechanges import __version__
 from filechanges.filechanges import (
     connectdb,
     createhashtable,
+    createhashtableidx,
     debug,
     getbasefile,
     getfileext,
@@ -118,3 +119,10 @@ def test_haschanged():
 
     adjusted_md5 = "x" + computed_md5[1:]
     assert haschanged(test_txt_file_name, adjusted_md5)
+
+def test_createhashtableidx():
+    f = rm_db_file()
+    assert createhashtable("sparky")
+    assert createhashtableidx("sparky")
+
+    assert False
