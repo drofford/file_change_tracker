@@ -53,40 +53,46 @@ def connectdb() -> sqlite3.Connection:
         exit(1)
 
 
-def tableexists(table: str) -> bool:
-    """Checks if a SQLite DB Table exists"""
-    result = False
-    try:
-        conn = connectdb()
-        if conn is not None:
-            query = f"SELECT id from {table}"  # Finish this query ...
-            debug(f"{query=}")
-
-            result = corecursor(conn, query)
-            debug(f"{result=}")
-
-            return result
-
-    except Exception as ex:
-        error('exception "{}" caught'.format(ex))
-        return False
-
-
 def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
+    result = False
+    cursor = conn.cursor()
     try:
-        cursor = conn.cursor()
         if args is None:
-            result = cursor.execute(query)
+            debug("invoking cursor.execute() without args")
+            r = cursor.execute(query)
+            debug(f"cursor.execute() returned {r}")
         else:
-            result = cursor.execute(query, args)
-        debug(f"result = {result}, returning True")
-        return True
-    except sqlite3.OperationalError as ex:
-        debug(f'caught exception of type {type(ex)}: "{ex}", returning False')
-        return False
-    except Exception as ex:
-        error(f'caught exception of type {type(ex)}: "{ex}", program abending')
-        exit(1)
+            debug("invoking cursor.execute() with args")
+            r = cursor.execute(query, args)
+            debug(f"cursor.execute() returned {r}")
+        rows = cursor.fetchall()
+        numrows = len(list(rows))
+        debug(f"{numrows=}")
+        if numrows > 0:
+            result = True
+    except sqlite3.OperationalError as err:
+        error(str(err))
+    finally:
+        cursor.close()
+
+    debug(f"returning {result}")
+    return result
+
+
+def tableexists(table_name: str) -> bool:
+    result = False
+    conn = connectdb()
+    if conn is not None:
+        try:
+            query = "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+            args = (table_name,)
+            result = corecursor(conn, query, args)
+        except sqlite3.OperationalError as err:
+            error(str(err))
+        finally:
+            conn.close()
+
+    return result
 
 
 def createhashtable(table: str = "files") -> bool:
@@ -94,28 +100,27 @@ def createhashtable(table: str = "files") -> bool:
     try:
         conn = connectdb()
         if conn is not None:
-            if tableexists(table):
+            r = tableexists(table)
+            debug(f"{r=}")
+            if r:
                 debug(f"table {table} does exist")
             else:
                 debug(f"table {table} does not exist")
-                query = f"CREATE TABLE IF NOT EXISTS {table} (id integer primary key, file_name text)"
-                debug(f"Create table statement = {query}")
 
-                args = (table,)
                 try:
-                    cursor = conn.cursor()
-                    result = cursor.execute(query)
-                    conn.commit()
-                    debug("result = {}".format(result))
+                    query = f"CREATE TABLE IF NOT EXISTS {table} (id integer primary key, file_name text)"
+                    args = (table,)
+                    corecursor(conn, query, None)
                     result = True
-                except sqlite3.OperationalError as ex:
-                    debug('exception of type "{}" caught: {}'.format(type(ex), ex))
-                except Exception as ex:
-                    error('exception "{}" caught'.format(ex))
-                    exit(1)
+                except sqlite3.OperationalError as err:
+                    error(str(err))
+                finally:
+                    conn.close()
     except sqlite3.OperationalError as ex:
         debug('exception of type "{}" caught: {}'.format(type(ex), ex))
     except Exception as ex:
         error(f'caught exception of type {type(ex)}: "{ex}", program abending')
         exit(1)
+
+    debug(f"returning {result}")
     return result
