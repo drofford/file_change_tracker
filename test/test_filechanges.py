@@ -6,6 +6,7 @@ import time
 
 from filechanges import __version__
 from filechanges.filechanges import (
+    FILE_TABLE_NAME,
     connectdb,
     createhashtable,
     createhashtableidx,
@@ -14,7 +15,9 @@ from filechanges.filechanges import (
     getfileext,
     getmoddate,
     haschanged,
+    inserthashtable,
     md5short,
+    runcmd,
     tableexists,
 )
 
@@ -41,7 +44,7 @@ def test_connectdb_new():
     conn = connectdb()
     assert conn is not None
     assert isinstance(conn, sqlite3.Connection)
-    conn.commit()
+    # conn.commit()
     conn.close()
 
     return f
@@ -54,23 +57,21 @@ def test_connectdb_extant():
     conn = connectdb()
     assert conn is not None
     assert isinstance(conn, sqlite3.Connection)
-    conn.commit()
+    # conn.commit()
     conn.close()
-
-    # assert False
 
 
 def test_tableexists_false():
     test_connectdb_new()
 
-    assert not tableexists("sparky")
+    assert not tableexists(FILE_TABLE_NAME)
 
 
 def test_createhashtable():
     f = rm_db_file()
 
-    assert createhashtable("sparky")
-    assert not createhashtable("sparky")
+    assert createhashtable(FILE_TABLE_NAME)
+    assert not createhashtable(FILE_TABLE_NAME)
 
 
 def test_getfileext():
@@ -120,9 +121,44 @@ def test_haschanged():
     adjusted_md5 = "x" + computed_md5[1:]
     assert haschanged(test_txt_file_name, adjusted_md5)
 
+
 def test_createhashtableidx():
     f = rm_db_file()
-    assert createhashtable("sparky")
-    assert createhashtableidx("sparky")
+    assert createhashtable(FILE_TABLE_NAME)
+    assert createhashtableidx(FILE_TABLE_NAME)
 
-    assert False
+
+def test_runcmd_no_conn():
+    f = rm_db_file()
+
+    cmd = "CREATE TABLE dummy (id integer primary key, fname text, lname text)"
+    debug(f"command = {cmd}")
+
+    r = runcmd(cmd)
+    debug(f"runcmd returned {r}")
+    assert r
+
+    r = runcmd(cmd)
+    debug(f"runcmd returned {r}")
+    assert not r
+
+
+def test_inserthashtable():
+    f = rm_db_file()
+    assert createhashtable(FILE_TABLE_NAME)
+    assert createhashtableidx(FILE_TABLE_NAME)
+
+    # fname =
+    test_txt_file_name = os.path.join("test", "data", "file1.txt")
+    assert os.path.isfile(test_txt_file_name)
+
+    computed_md5 = md5short(test_txt_file_name)
+    debug(f"computed MD5 = {computed_md5}")
+
+    r = inserthashtable(test_txt_file_name, computed_md5)
+    debug(f"1st runcmd returned {r}")
+    assert r
+
+    r = inserthashtable(test_txt_file_name, computed_md5)
+    debug(f"2nd runcmd returned {r}")
+    assert not r

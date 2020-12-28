@@ -3,6 +3,7 @@ import hashlib
 import inspect
 import logging as LOG
 import os
+import re
 import sys
 import sqlite3
 
@@ -12,6 +13,11 @@ import sqlite3
 level = LOG.DEBUG if os.getenv("DEBUG", "") == "Y" else LOG.INFO
 LOG.basicConfig(format="%(asctime)s %(levelname)s : %(message)s", level=level)
 logger = LOG.getLogger()
+
+#
+# constants
+#
+FILE_TABLE_NAME = "files"
 
 
 def debug(msg):
@@ -70,6 +76,8 @@ def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
         numrows = len(list(rows))
         debug(f"{numrows=}")
         if numrows > 0:
+            for row in rows:
+                debug(f"  {row=}")
             result = True
     except sqlite3.OperationalError as err:
         error(str(err))
@@ -97,34 +105,27 @@ def tableexists(table: str) -> bool:
     return result
 
 
-def createhashtable(table: str = "files") -> bool:
+def createhashtable(table: str = FILE_TABLE_NAME) -> bool:
     """Creates the named table if it does not exist"""
-    result = False
-    try:
-        conn = connectdb()
-        if conn is not None:
-            r = tableexists(table)
-            debug(f"{r=}")
-            if r:
-                debug(f"table {table} does exist")
-            else:
-                debug(f"table {table} does not exist")
 
-                try:
-                    query = f"CREATE TABLE IF NOT EXISTS {table} (id integer primary key, fname text, md5 text)"
-                    # query = "CREATE TABLE IF NOT EXISTS ? (id integer primary key, fname text, md5 text)"
-                    # args = (table,)
-                    corecursor(conn, query, None)
-                    result = True
-                except sqlite3.OperationalError as err:
-                    error(str(err))
-                finally:
-                    conn.close()
-    except sqlite3.OperationalError as ex:
-        debug('exception of type "{}" caught: {}'.format(type(ex), ex))
-    except Exception as ex:
-        error(f'caught exception of type {type(ex)}: "{ex}", program abending')
-        exit(1)
+    cmd = f"CREATE TABLE {table} (id integer primary key, fname text, md5 text, moddate integer)"
+    debug(f"command = {cmd}")
+
+    result = runcmd(cmd)
+    debug(f"runcmd returned {result}")
+
+    debug(f"returning {result}")
+    return result
+
+
+def createhashtableidx(table: str = "files") -> bool:
+    """Creates a SQLite DB Table Index"""
+
+    cmd = f"CREATE UNIQUE INDEX idx_{table} ON {table} (md5)"
+    debug(f"command = {cmd}")
+
+    result = runcmd(cmd)
+    debug(f"runcmd returned {result}")
 
     debug(f"returning {result}")
     return result
@@ -191,57 +192,88 @@ def md5short(fname):
 
     return md5val
 
-# =================================
-# functions still to be implemented
-# =================================
 
-def createhashtableidx(table: str = "files") -> bool:
-    """Creates a SQLite DB Table Index"""
+def runcmd(cmd: str, args: list = None) -> bool:
+    """Run a specific command on the SQLite DB"""
 
     result = False
+
     conn = connectdb()
-    if conn is not None:
-        try:
-            debug(f"will create index on {table}")
 
-            query = f"CREATE UNIQUE INDEX idx_{table} ON {table} ({fname})"
-            debug(f"query = \"{query}\"")
+    debug(f"conn = {conn}")
+    debug(f"cmd  = {cmd}")
+    debug(f"args = {args}")
 
-            #args = ("idx_"+table, table, "fname")
-            #debug(f"args = {args}")
+    cursor = conn.cursor()
+    try:
+        if args is None:
+            debug("invoking cursor.execute() without args")
+            r = cursor.execute(cmd)
+            debug(f"cursor.execute() returned {r}")
+        else:
+            debug("invoking cursor.execute() with args")
+            r = cursor.execute(cmd, args)
+            debug(f"cursor.execute() returned {r}")
 
-            #corecursor(conn, query, args)
-            corecursor(conn, query)
-            debug("backl from call to corecursor")
-            result = True
-        except sqlite3.OperationalError as err:
+        r = conn.commit()
+        debug(f"conn.commit() returned {r}")
+
+        rows = cursor.fetchall()
+        numrows = len(list(rows))
+        debug(f"{numrows=}")
+        if numrows > 0:
+            for row in rows:
+                debug(f"  {row=}")
+        result = True
+    except sqlite3.IntegrityError as err:
+        error(str(err))
+    except sqlite3.OperationalError as err:
+        if len(re.findall(r"table\s+(\S+)\s+already\s+exists", str(err))) > 0:
+            debug(str(err))
+        else:
             error(str(err))
-        except Exception as ex:
-            error(f'caught exception of type {type(ex)}: "{ex}", program abending')
-            exit(1)
-        finally:
-            conn.close()
+    finally:
+        cursor.close()
+
+    conn.close()
 
     debug(f"returning {result}")
     return result
 
-def runcmd(qry):
-    """Run a specific command on the SQLite DB"""
-    raise NotImplementedError("runcmd")
+
+def inserthashtable(fname, md5):
+    """Insert into the SQLite File Table"""
+
+    cmd = f"INSERT INTO {FILE_TABLE_NAME} (fname, md5, moddate) VALUES (?, ?, ?)"
+    args = (fname, md5, int(getmoddate(fname)))
+
+    result = runcmd(cmd, args)
+    debug(f"returning {result}")
+
+    # r = runcmd("commit")
+    # debug(f"commit returned {r}")
+
+    return result
+
+# =================================
+# functions still to be implemented
+# =================================
+
 
 def updatehashtable(fname, md5):
     """Update the SQLite File Table"""
     raise NotImplementedError("updatehashtable")
 
-def inserthashtable(fname, md5):
-    """Insert into the SQLite File Table"""
-    raise NotImplementedError("inserthashtable")
+
 
 def setuphashtable(fname, md5):
     """Setup's the Hash Table"""
     raise NotImplementedError("setuphashtable")
 
+
 def md5indb(fname):
     """Checks if md5 hash tag exists in the SQLite DB"""
-    raise NotImplementedError("md5indb")
 
+    # query = f"SELECT id, fname, moddate FROM
+
+    raise NotImplementedError("md5indb")
