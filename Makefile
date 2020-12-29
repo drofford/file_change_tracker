@@ -2,7 +2,7 @@ targets:
 	@echo Valid targets are: `egrep '^[^ :]+:' Makefile | cut -d: -f1 | grep -v '\<targets\>' | grep -v ^_ | sort | uniq`
 
 clean:
-	@find . -depth \( -name \*.pyc -o -name __pycache__ \) -exec /bin/rm -fr {} \;
+	@find . -depth \( -name \*.pyc -o -name __pycache__ -o -name \*~ \) -exec /bin/rm -fr {} \;
 
 format:
 	@black `find . -name \*.py`
