@@ -143,12 +143,11 @@ def test_runcmd_no_conn():
     assert not r
 
 
-def test_inserthashtable():
+def test_inserthashtable_one():
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
 
-    # fname =
     test_txt_file_name = os.path.join("test", "data", "file1.txt")
     assert os.path.isfile(test_txt_file_name)
 
@@ -162,3 +161,31 @@ def test_inserthashtable():
     r = inserthashtable(test_txt_file_name, computed_md5)
     debug(f"2nd runcmd returned {r}")
     assert not r
+
+    
+
+def test_inserthashtable_two():
+    f = rm_db_file()
+    assert createhashtable(FILE_TABLE_NAME)
+    assert createhashtableidx(FILE_TABLE_NAME)
+
+    test_txt_file1_name = os.path.join("test", "data", "file1.txt")
+    assert os.path.isfile(test_txt_file1_name)
+
+    test_txt_file1_computed_md5 = md5short(test_txt_file1_name)
+    debug(f"computed MD5 = {test_txt_file1_computed_md5}")
+
+    r = inserthashtable(test_txt_file1_name, test_txt_file1_computed_md5)
+    debug(f"1st runcmd returned {r}")
+    assert r
+
+    
+    test_txt_file2_name = os.path.join("test", "data", "file2.txt")
+    assert os.path.isfile(test_txt_file2_name)
+
+    test_txt_file2_computed_md5 = md5short(test_txt_file2_name)
+    debug(f"computed MD5 = {test_txt_file2_computed_md5}")
+
+    r = inserthashtable(test_txt_file2_name, test_txt_file2_computed_md5)
+    debug(f"2nd runcmd returned {r}")
+    assert r
