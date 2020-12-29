@@ -262,8 +262,14 @@ def inserthashtable(fname, md5):
 
 def updatehashtable(fname, md5):
     """Update the SQLite File Table"""
-    raise NotImplementedError("updatehashtable")
 
+    cmd = f"UPDATE {FILE_TABLE_NAME} SET md5='{md5}', moddate={int(getmoddate(fname))} WHERE fname = '{fname}'"
+    
+
+    result = runcmd(cmd) #, args)
+    debug(f"returning {result}")
+
+    return result
 
 
 def setuphashtable(fname, md5):
