@@ -16,6 +16,7 @@ from filechanges.filechanges import (
     getmoddate,
     haschanged,
     inserthashtable,
+    md5indb,
     md5short,
     runcmd,
     setuphashtable,
@@ -229,3 +230,25 @@ def test_setuphashtable():
     r = setuphashtable(test_txt_file1_name, test_txt_file1_computed_md5, table="sparky")
     debug(f"setuphashtable() returned {r}")
     assert r
+
+
+def test_md5indb():
+    f = rm_db_file()
+    assert createhashtable(FILE_TABLE_NAME)
+    assert createhashtableidx(FILE_TABLE_NAME)
+
+    test_txt_file1_name = os.path.join("test", "data", "file1.txt")
+    assert os.path.isfile(test_txt_file1_name)
+
+    test_txt_file1_computed_md5 = md5short(test_txt_file1_name)
+    debug(f"computed MD5 = {test_txt_file1_computed_md5}")
+
+    r = md5indb(test_txt_file1_name)
+    debug(f"test_txt_file1_name is {'' if r else 'not '}in the table {FILE_TABLE_NAME}")
+    assert r
+    
+    r = inserthashtable(test_txt_file1_name, test_txt_file1_computed_md5)
+    debug(f"inserthashtable returned {r}")
+    assert r
+
+    

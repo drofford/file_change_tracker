@@ -61,6 +61,8 @@ def connectdb() -> sqlite3.Connection:
 
 
 def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
+    debug(f"query = \"{query}\"")
+    
     result = False
     cursor = conn.cursor()
     try:
@@ -121,7 +123,7 @@ def createhashtable(table: str = FILE_TABLE_NAME) -> bool:
 def createhashtableidx(table: str = FILE_TABLE_NAME) -> bool:
     """Creates a SQLite DB Table Index"""
 
-    cmd = f"CREATE UNIQUE INDEX idx_{table} ON {table} (md5)"
+    cmd = f"CREATE UNIQUE INDEX idx_{table} ON {table} (fname)"
     debug(f"command = {cmd}")
 
     result = runcmd(cmd)
@@ -277,14 +279,22 @@ def setuphashtable(fname, md5, table: str = FILE_TABLE_NAME):
     return False
     
 
-# =================================
-# functions still to be implemented
-# =================================
-
-
 def md5indb(fname, table: str = FILE_TABLE_NAME):
     """Checks if md5 hash tag exists in the SQLite DB"""
 
-    # query = f"SELECT id, fname, moddate FROM
+    result = False
+    conn = connectdb()
+    if conn is not None:
+        try:
+            query = f"SELECT md5 FROM {table} WHERE fname = ?"
+            args = (fname, )
+            result = corecursor(conn, query, args)
+            debug(f"{result=}")
+            result = True
+        except sqlite3.OperationalError as err:
+            error(str(err))
+        finally:
+            conn.close()
 
-    raise NotImplementedError("md5indb")
+    return result
+
