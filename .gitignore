@@ -7,3 +7,5 @@
 *.pyc
 __pycache__/
 *.dummy
+
+notes.txt
