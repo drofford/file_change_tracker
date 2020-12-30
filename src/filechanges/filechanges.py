@@ -88,7 +88,7 @@ def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
     return result
 
 
-def tableexists(table: str) -> bool:
+def tableexists(table: str = FILE_TABLE_NAME) -> bool:
     """Checks to see if a table exists"""
     result = False
     conn = connectdb()
@@ -118,7 +118,7 @@ def createhashtable(table: str = FILE_TABLE_NAME) -> bool:
     return result
 
 
-def createhashtableidx(table: str = "files") -> bool:
+def createhashtableidx(table: str = FILE_TABLE_NAME) -> bool:
     """Creates a SQLite DB Table Index"""
 
     cmd = f"CREATE UNIQUE INDEX idx_{table} ON {table} (md5)"
@@ -241,10 +241,10 @@ def runcmd(cmd: str, args: list = None) -> bool:
     return result
 
 
-def inserthashtable(fname, md5):
+def inserthashtable(fname, md5, table: str = FILE_TABLE_NAME):
     """Insert into the SQLite File Table"""
 
-    cmd = f"INSERT INTO {FILE_TABLE_NAME} (fname, md5, moddate) VALUES (?, ?, ?)"
+    cmd = f"INSERT INTO {table} (fname, md5, moddate) VALUES (?, ?, ?)"
     args = (fname, md5, int(getmoddate(fname)))
 
     result = runcmd(cmd, args)
@@ -255,29 +255,34 @@ def inserthashtable(fname, md5):
 
     return result
 
+def updatehashtable(fname, md5, table: str = FILE_TABLE_NAME):
+    """Update the SQLite File Table"""
+
+    cmd = f"UPDATE {table} SET md5='{md5}', moddate={int(getmoddate(fname))} WHERE fname = '{fname}'"
+    result = runcmd(cmd) #, args)
+    debug(f"returning {result}")
+    return result
+
+
+def setuphashtable(fname, md5, table: str = FILE_TABLE_NAME):
+    """Setup's the Hash Table"""
+
+    if createhashtable(table):
+        if createhashtableidx(table):
+            if inserthashtable(fname, md5, table):
+                debug(f"hash {table=} setup complete")
+                debug(f"    inserted: {fname=}, {md5=}")
+                return True
+    error("Failed to setup hash {table=}")
+    return False
+    
+
 # =================================
 # functions still to be implemented
 # =================================
 
 
-def updatehashtable(fname, md5):
-    """Update the SQLite File Table"""
-
-    cmd = f"UPDATE {FILE_TABLE_NAME} SET md5='{md5}', moddate={int(getmoddate(fname))} WHERE fname = '{fname}'"
-    
-
-    result = runcmd(cmd) #, args)
-    debug(f"returning {result}")
-
-    return result
-
-
-def setuphashtable(fname, md5):
-    """Setup's the Hash Table"""
-    raise NotImplementedError("setuphashtable")
-
-
-def md5indb(fname):
+def md5indb(fname, table: str = FILE_TABLE_NAME):
     """Checks if md5 hash tag exists in the SQLite DB"""
 
     # query = f"SELECT id, fname, moddate FROM
