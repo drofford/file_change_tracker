@@ -298,3 +298,32 @@ def md5indb(fname, table: str = FILE_TABLE_NAME):
 
     return result
 
+# To Be Implemented
+
+def runfilechanges(ws):
+    # Invoke the function that loads and parses the config file
+    for i, fld in enumerate(fldexts[0]):
+        # Invoke the function that checks each folder for file changes
+        pass
+    return changed
+
+def checkfilechanges(folder, exclude, ws):
+    changed = False
+    """Checks for files changes"""
+    for subdir, dirs, files in os.walk(folder):
+        for fname in files:
+            origin = os.path.join(subdir, fname)
+            if os.path.isfile(origin): 
+                      # Get file extension and check if it is not excluded
+                      # Get the file’s md5 hash
+                      # If the file has changed, add it to the Excel report
+    return changed
+
+def something():
+    flds = []
+    ext = []
+    config = getbasefile() + '.ini'
+    if os.path.isfile(config):
+        cfile = open(config, 'r')
+        # Parse each config file line and get the folder and extensions
+    return flds, ext
