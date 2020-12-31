@@ -298,6 +298,62 @@ def md5indb(fname, table: str = FILE_TABLE_NAME):
 
     return result
 
+
+def readconfig(filename=None):
+
+    def process_dir(dir_path):
+        pass
+
+    def process_exts(exts):
+
+        def process_ext(ext):
+            pass
+
+        debug(f"    processing {exts=}")
+
+        for ext in exts.split(","):
+            ext = ext.strip()
+            debug(f"        processing {ext=}")
+            process_ext(ext)
+        
+        pass
+    
+    if filename is None:
+        filename = getbasefile() + ".ini"
+        debug(f"no config filename provided. Using \"{filename}\"")
+
+    debug("="*78)
+    debug(f"reading config file \"{filename}\"")
+    with open(filename, "rt") as cfg:
+        for line_num, line_buf in enumerate(cfg):
+            line_buf = line_buf.strip()
+            debug("-"*78)
+            debug(f"[{line_num:04}] : {line_buf}")
+
+            if len(line_buf) == 0 or line_buf.startswith("#"):
+                debug("    skipping blank or comment line")
+                continue
+            
+            parts = line_buf.split("|")
+            debug(f"    {len(parts)=} : {parts=}")
+
+            if len(parts) == 1:
+                debug(f"    process dir \"{parts[0]}\"")
+                process_dir(parts[0])
+            elif len(parts) == 2:
+                debug(f"    process dir  \"{parts[0]}\"")
+                process_dir(parts[0])
+                debug(f"    process exts \"{parts[1]}\"")
+                process_exts(parts[1])
+            else:
+                error(f"error in line {line_num}: too many '|' characters ({len(parts)-1})")
+                return None
+            
+    debug("="*78)
+
+    return None
+
+
 # To Be Implemented
 
 def runfilechanges(ws):
@@ -317,6 +373,7 @@ def checkfilechanges(folder, exclude, ws):
                       # Get file extension and check if it is not excluded
                       # Get the file’s md5 hash
                       # If the file has changed, add it to the Excel report
+                pass
     return changed
 
 def something():

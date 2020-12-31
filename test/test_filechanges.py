@@ -18,6 +18,7 @@ from filechanges.filechanges import (
     inserthashtable,
     md5indb,
     md5short,
+    readconfig,
     runcmd,
     setuphashtable,
     tableexists,
@@ -252,3 +253,11 @@ def test_md5indb():
     assert r
 
     
+def test_readconfig():
+    filename =  os.path.join("test", "data","example.ini")
+
+    debug(f"reading config from \"{filename}\"")
+    results = readconfig(filename)
+    
+    assert results is not None
+    assert False
