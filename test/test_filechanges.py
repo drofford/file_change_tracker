@@ -166,7 +166,6 @@ def test_inserthashtable_one():
     debug(f"2nd runcmd returned {r}")
     assert not r
 
-    
 
 def test_inserthashtable_two():
     f = rm_db_file()
@@ -183,7 +182,6 @@ def test_inserthashtable_two():
     debug(f"1st runcmd returned {r}")
     assert r
 
-    
     test_txt_file2_name = os.path.join("test", "data", "file2.txt")
     assert os.path.isfile(test_txt_file2_name)
 
@@ -210,13 +208,11 @@ def test_updatehashtable():
     debug(f"1st runcmd [inserthashtable] returned {r}")
     assert r
 
-    
     r = updatehashtable(test_txt_file1_name, "XYZMD5")
     debug(f"2nd runcmd [updatehashtable] returned {r}")
     assert r
 
     # assert False
-    
 
 
 def test_setuphashtable():
@@ -247,17 +243,17 @@ def test_md5indb():
     r = md5indb(test_txt_file1_name)
     debug(f"test_txt_file1_name is {'' if r else 'not '}in the table {FILE_TABLE_NAME}")
     assert r
-    
+
     r = inserthashtable(test_txt_file1_name, test_txt_file1_computed_md5)
     debug(f"inserthashtable returned {r}")
     assert r
 
-    
-def test_readconfig():
-    filename =  os.path.join("test", "data","example.ini")
 
-    debug(f"reading config from \"{filename}\"")
+def test_readconfig():
+    filename = os.path.join("test", "data", "example.ini")
+
+    debug(f'reading config from "{filename}"')
     results = readconfig(filename)
-    
+
     assert results is not None
     assert False

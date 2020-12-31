@@ -3,6 +3,7 @@ import hashlib
 import inspect
 import logging as LOG
 import os
+import pprint
 import re
 import sys
 import sqlite3
@@ -61,8 +62,8 @@ def connectdb() -> sqlite3.Connection:
 
 
 def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
-    debug(f"query = \"{query}\"")
-    
+    debug(f'query = "{query}"')
+
     result = False
     cursor = conn.cursor()
     try:
@@ -257,11 +258,12 @@ def inserthashtable(fname, md5, table: str = FILE_TABLE_NAME):
 
     return result
 
+
 def updatehashtable(fname, md5, table: str = FILE_TABLE_NAME):
     """Update the SQLite File Table"""
 
     cmd = f"UPDATE {table} SET md5='{md5}', moddate={int(getmoddate(fname))} WHERE fname = '{fname}'"
-    result = runcmd(cmd) #, args)
+    result = runcmd(cmd)  # , args)
     debug(f"returning {result}")
     return result
 
@@ -277,7 +279,7 @@ def setuphashtable(fname, md5, table: str = FILE_TABLE_NAME):
                 return True
     error("Failed to setup hash {table=}")
     return False
-    
+
 
 def md5indb(fname, table: str = FILE_TABLE_NAME):
     """Checks if md5 hash tag exists in the SQLite DB"""
@@ -287,7 +289,7 @@ def md5indb(fname, table: str = FILE_TABLE_NAME):
     if conn is not None:
         try:
             query = f"SELECT md5 FROM {table} WHERE fname = ?"
-            args = (fname, )
+            args = (fname,)
             result = corecursor(conn, query, args)
             debug(f"{result=}")
             result = True
@@ -301,60 +303,76 @@ def md5indb(fname, table: str = FILE_TABLE_NAME):
 
 def readconfig(filename=None):
 
+    dirs_and_exts_map = dict()
+
     def process_dir(dir_path):
-        pass
+        if "\\" in dir_path and ":" in dir_path:
+            debug(f'       processing windows-style path "{dir_path}"')
+            style = "windows"
+        else:
+            debug(f'       processing posix-style path "{dir_path}"')
+            style = "posix"
 
-    def process_exts(exts):
+        if dir_path not in dirs_and_exts_map:
+            dirs_and_exts_map[dir_path] = {"count": 1, "exts": {}, "style": style}
+        else:
+            dirs_and_exts_map[dir_path]["count"] += 1
 
+    def process_exts(dir_path, exts):
         def process_ext(ext):
-            pass
+            if ext.startswith("."):
+                ext = ext[1:]
+            dirs_and_exts_map[dir_path]["exts"][ext] = {"count": 0}
 
-        debug(f"    processing {exts=}")
-
+        debug(f"      processing {exts=}")
         for ext in exts.split(","):
             ext = ext.strip()
-            debug(f"        processing {ext=}")
+            debug(f"          processing {ext=}")
             process_ext(ext)
-        
-        pass
-    
+
     if filename is None:
         filename = getbasefile() + ".ini"
-        debug(f"no config filename provided. Using \"{filename}\"")
+        debug(f'no config filename provided. Using "{filename}"')
 
-    debug("="*78)
-    debug(f"reading config file \"{filename}\"")
+    debug("=" * 78)
+    debug(f'reading config file "{filename}"')
     with open(filename, "rt") as cfg:
         for line_num, line_buf in enumerate(cfg):
             line_buf = line_buf.strip()
-            debug("-"*78)
+            debug("-" * 78)
             debug(f"[{line_num:04}] : {line_buf}")
 
             if len(line_buf) == 0 or line_buf.startswith("#"):
                 debug("    skipping blank or comment line")
                 continue
-            
+
             parts = line_buf.split("|")
             debug(f"    {len(parts)=} : {parts=}")
 
             if len(parts) == 1:
-                debug(f"    process dir \"{parts[0]}\"")
+                debug(f'    process dir "{parts[0]}"')
                 process_dir(parts[0])
             elif len(parts) == 2:
-                debug(f"    process dir  \"{parts[0]}\"")
+                debug(f'    process dir  "{parts[0]}"')
                 process_dir(parts[0])
-                debug(f"    process exts \"{parts[1]}\"")
-                process_exts(parts[1])
+                debug(f'    process exts "{parts[1]}"')
+                process_exts(parts[0], parts[1])
             else:
-                error(f"error in line {line_num}: too many '|' characters ({len(parts)-1})")
+                error(
+                    f"error in line {line_num}: too many '|' characters ({len(parts)-1})"
+                )
                 return None
-            
-    debug("="*78)
 
-    return None
+    debug("=" * 78)
+    # debug(f"dir to ext map = \n{dirs_and_exts_map}")
+    debug(f"dir to ext map = \n{pprint.pformat(dirs_and_exts_map)}")
+    debug("=" * 78)
+
+    return dirs_and_exts_map
 
 
 # To Be Implemented
+
 
 def runfilechanges(ws):
     # Invoke the function that loads and parses the config file
@@ -363,24 +381,26 @@ def runfilechanges(ws):
         pass
     return changed
 
+
 def checkfilechanges(folder, exclude, ws):
     changed = False
     """Checks for files changes"""
     for subdir, dirs, files in os.walk(folder):
         for fname in files:
             origin = os.path.join(subdir, fname)
-            if os.path.isfile(origin): 
-                      # Get file extension and check if it is not excluded
-                      # Get the file’s md5 hash
-                      # If the file has changed, add it to the Excel report
+            if os.path.isfile(origin):
+                # Get file extension and check if it is not excluded
+                # Get the file’s md5 hash
+                # If the file has changed, add it to the Excel report
                 pass
     return changed
+
 
 def something():
     flds = []
     ext = []
-    config = getbasefile() + '.ini'
+    config = getbasefile() + ".ini"
     if os.path.isfile(config):
-        cfile = open(config, 'r')
+        cfile = open(config, "r")
         # Parse each config file line and get the folder and extensions
     return flds, ext
