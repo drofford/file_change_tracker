@@ -301,9 +301,42 @@ def md5indb(fname, table: str = FILE_TABLE_NAME):
     return result
 
 
-def readconfig(filename=None):
+def runfilechanges(ws):
+    # Invoke the function that loads and parses the config file
+    for i, fld in enumerate(fldexts[0]):
+        # Invoke the function that checks each folder for file changes
+        pass
+    return changed
+
+
+def checkfilechanges(folder, exclude, ws):
+    changed = False
+    """Checks for files changes"""
+    for subdir, dirs, files in os.walk(folder):
+        for fname in files:
+            origin = os.path.join(subdir, fname)
+            if os.path.isfile(origin):
+                # Get file extension and check if it is not excluded
+                # Get the file’s md5 hash
+                # If the file has changed, add it to the Excel report
+                pass
+    return changed
+
+
+def readconfig():
+    flds = []
+    exts = []
+    config_file_name = getbasefile() + ".ini"
+    if os.path.isfile(config_file_name):
+        flds, exts = _readconfig(config_file_name)
+    return flds, exts
+
+
+def _readconfig(config_file_name):
 
     dirs_and_exts_map = dict()
+    dirs_map = dict()
+    exts_map = dict()
 
     def process_dir(dir_path):
         if "\\" in dir_path and ":" in dir_path:
@@ -317,6 +350,7 @@ def readconfig(filename=None):
             dirs_and_exts_map[dir_path] = {"count": 1, "exts": {}, "style": style}
         else:
             dirs_and_exts_map[dir_path]["count"] += 1
+        dirs_map[dir_path] = {}
 
     def process_exts(dir_path, exts):
         def process_ext(ext):
@@ -329,14 +363,11 @@ def readconfig(filename=None):
             ext = ext.strip()
             debug(f"          processing {ext=}")
             process_ext(ext)
-
-    if filename is None:
-        filename = getbasefile() + ".ini"
-        debug(f'no config filename provided. Using "{filename}"')
+            exts_map[ext] = None
 
     debug("=" * 78)
-    debug(f'reading config file "{filename}"')
-    with open(filename, "rt") as cfg:
+    debug(f'reading config file "{config_file_name}"')
+    with open(config_file_name, "rt") as cfg:
         for line_num, line_buf in enumerate(cfg):
             line_buf = line_buf.strip()
             debug("-" * 78)
@@ -364,43 +395,15 @@ def readconfig(filename=None):
                 return None
 
     debug("=" * 78)
-    # debug(f"dir to ext map = \n{dirs_and_exts_map}")
     debug(f"dir to ext map = \n{pprint.pformat(dirs_and_exts_map)}")
+    debug("-" * 78)
+    debug(f"dirs map = \n{pprint.pformat(dirs_map)}")
+    debug("-" * 78)
+    debug(f"exts map = \n{pprint.pformat(exts_map)}")
     debug("=" * 78)
 
-    return dirs_and_exts_map
-
-
-# To Be Implemented
-
-
-def runfilechanges(ws):
-    # Invoke the function that loads and parses the config file
-    for i, fld in enumerate(fldexts[0]):
-        # Invoke the function that checks each folder for file changes
-        pass
-    return changed
-
-
-def checkfilechanges(folder, exclude, ws):
-    changed = False
-    """Checks for files changes"""
-    for subdir, dirs, files in os.walk(folder):
-        for fname in files:
-            origin = os.path.join(subdir, fname)
-            if os.path.isfile(origin):
-                # Get file extension and check if it is not excluded
-                # Get the file’s md5 hash
-                # If the file has changed, add it to the Excel report
-                pass
-    return changed
-
-
-def something():
-    flds = []
-    ext = []
-    config = getbasefile() + ".ini"
-    if os.path.isfile(config):
-        cfile = open(config, "r")
-        # Parse each config file line and get the folder and extensions
-    return flds, ext
+    # return dirs_and_exts_map
+    # result sorted(list(dirs_map.keys())), sorted(list(exts_map.keys()))
+    a = sorted(list(dirs_map.keys()))
+    b = sorted(list(exts_map.keys()))
+    return a, b

@@ -23,6 +23,7 @@ from filechanges.filechanges import (
     setuphashtable,
     tableexists,
     updatehashtable,
+    _readconfig,
 )
 
 
@@ -252,8 +253,17 @@ def test_md5indb():
 def test_readconfig():
     filename = os.path.join("test", "data", "example.ini")
 
-    debug(f'reading config from "{filename}"')
-    results = readconfig(filename)
+    debug(f'reading config from default file: "{filename}"')
+    results = readconfig()
+
+    assert results is not None
+    assert False
+
+def test__readconfig():
+    filename = os.path.join("test", "data", "example.ini")
+
+    debug(f'reading config from explicit "{filename}"')
+    results = _readconfig(filename)
 
     assert results is not None
     assert False
