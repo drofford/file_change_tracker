@@ -362,6 +362,12 @@ def test_readconfig_mixed_w() -> None:
 
 
 def test_runfilechanges() -> None:
-    src_cfg_file_name, dst_cfg_file_name = create_default_config_file()
+
+    if os.sys.platform.startswith("win"):
+        style = "windows"
+    else:
+        style = "posix"
+
+    src_cfg_file_name, dst_cfg_file_name = create_default_config_file(style + "_style")
     r = runfilechanges("WTF")
     assert r
