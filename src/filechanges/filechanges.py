@@ -244,7 +244,7 @@ def runcmd(cmd: str, args: list = None) -> bool:
     return result
 
 
-def inserthashtable(fname, md5, table: str = FILE_TABLE_NAME):
+def inserthashtable(fname, md5, table: str = FILE_TABLE_NAME) -> bool:
     """Insert into the SQLite File Table"""
 
     cmd = f"INSERT INTO {table} (fname, md5, moddate) VALUES (?, ?, ?)"
@@ -268,7 +268,7 @@ def updatehashtable(fname, md5, table: str = FILE_TABLE_NAME):
     return result
 
 
-def setuphashtable(fname, md5, table: str = FILE_TABLE_NAME):
+def setuphashtable(fname, md5, table: str = FILE_TABLE_NAME) -> bool:
     """Setup's the Hash Table"""
 
     if createhashtable(table):
@@ -281,7 +281,7 @@ def setuphashtable(fname, md5, table: str = FILE_TABLE_NAME):
     return False
 
 
-def md5indb(fname, table: str = FILE_TABLE_NAME):
+def md5indb(fname: str, table: str = FILE_TABLE_NAME) -> bool:
     """Checks if md5 hash tag exists in the SQLite DB"""
 
     result = False
@@ -301,15 +301,22 @@ def md5indb(fname, table: str = FILE_TABLE_NAME):
     return result
 
 
-def runfilechanges(ws):
+def runfilechanges(ws) -> bool:
     # Invoke the function that loads and parses the config file
+    debug("getting list of dirs to be scanned and extensions to be ignore")
+    fldexts = loadflds()
+    debug(f"got back {len(fldexts[0])} dirs and {len(fldexts[1])} extensions") 
+
+    changed = False
     for i, fld in enumerate(fldexts[0]):
         # Invoke the function that checks each folder for file changes
         pass
+
+    debug(f"returning {changed=}")
     return changed
 
 
-def checkfilechanges(folder, exclude, ws):
+def checkfilechanges(folder: str, exclude: list, ws: object) -> bool:
     changed = False
     """Checks for files changes"""
     for subdir, dirs, files in os.walk(folder):
@@ -323,7 +330,7 @@ def checkfilechanges(folder, exclude, ws):
     return changed
 
 
-def loadflds():
+def loadflds() -> tuple:
     flds = []
     exts = []
     
@@ -335,12 +342,12 @@ def loadflds():
     return flds, exts
 
 
-def readconfig(config_file_name):
+def readconfig(config_file_name: str) -> tuple:
     dirs_and_exts_map = dict()
     dirs_map = dict()
     exts_map = dict()
 
-    def process_dir(dir_path):
+    def process_dir(dir_path: str) -> None:
         if "\\" in dir_path and ":" in dir_path:
             debug(f'       processing windows-style path "{dir_path}"')
             style = "windows"
@@ -354,8 +361,8 @@ def readconfig(config_file_name):
             dirs_and_exts_map[dir_path]["count"] += 1
         dirs_map[dir_path] = {}
 
-    def process_exts(dir_path, exts):
-        def process_ext(ext):
+    def process_exts(dir_path: str, exts: str) -> None:
+        def process_ext(ext: str) -> None:
             if ext.startswith("."):
                 ext = ext[1:]
             dirs_and_exts_map[dir_path]["exts"][ext] = {"count": 0}
