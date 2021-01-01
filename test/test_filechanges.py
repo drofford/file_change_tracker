@@ -25,6 +25,7 @@ from filechanges.filechanges import (
     md5short,
     readconfig,
     runcmd,
+    runfilechanges,
     setuphashtable,
     tableexists,
     updatehashtable,
@@ -38,15 +39,15 @@ def rm_db_file() -> str:
     return db_filename
 
 
-def test_version():
+def test_version() -> None:
     assert __version__ == "0.1.0"
 
 
-def test_getbasefile():
+def test_getbasefile() -> None:
     assert getbasefile() == "filechanges"
 
 
-def test_connectdb_new():
+def test_connectdb_new() -> None:
     f = rm_db_file()
     assert not os.path.exists(f)
 
@@ -59,7 +60,7 @@ def test_connectdb_new():
     return f
 
 
-def test_connectdb_extant():
+def test_connectdb_extant() -> None:
     f = test_connectdb_new()
     assert os.path.exists(f)
 
@@ -70,20 +71,20 @@ def test_connectdb_extant():
     conn.close()
 
 
-def test_tableexists_false():
+def test_tableexists_false() -> None:
     test_connectdb_new()
 
     assert not tableexists(FILE_TABLE_NAME)
 
 
-def test_createhashtable():
+def test_createhashtable() -> None:
     f = rm_db_file()
 
     assert createhashtable(FILE_TABLE_NAME)
     assert not createhashtable(FILE_TABLE_NAME)
 
 
-def test_getfileext():
+def test_getfileext() -> None:
     assert getfileext("abc.txt") == "txt"
     assert getfileext("/tmp/abc.txt") == "txt"
     assert getfileext("/tmp/a/b/c/def.txt") == "txt"
@@ -92,7 +93,7 @@ def test_getfileext():
     assert getfileext(".abc.def") == "def"
 
 
-def test_getmoddate():
+def test_getmoddate() -> None:
     assert getmoddate("noname.txt") is None
 
     with tempfile.TemporaryFile(mode="w+t") as tf:
@@ -105,7 +106,7 @@ def test_getmoddate():
         assert moddate > 0.0
 
 
-def test_md5short():
+def test_md5short() -> None:
     test_txt_file_name = os.path.join("test", "data", "file1.txt")
     test_md5_file_name = test_txt_file_name + ".md5"
 
@@ -121,7 +122,7 @@ def test_md5short():
     assert computed_md5 == actual_md5
 
 
-def test_haschanged():
+def test_haschanged() -> None:
     test_txt_file_name = os.path.join("test", "data", "file1.txt")
     computed_md5 = md5short(test_txt_file_name)
 
@@ -131,13 +132,13 @@ def test_haschanged():
     assert haschanged(test_txt_file_name, adjusted_md5)
 
 
-def test_createhashtableidx():
+def test_createhashtableidx() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
 
 
-def test_runcmd_no_conn():
+def test_runcmd_no_conn() -> None:
     f = rm_db_file()
 
     cmd = "CREATE TABLE dummy (id integer primary key, fname text, lname text)"
@@ -152,7 +153,7 @@ def test_runcmd_no_conn():
     assert not r
 
 
-def test_inserthashtable_one():
+def test_inserthashtable_one() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
@@ -172,7 +173,7 @@ def test_inserthashtable_one():
     assert not r
 
 
-def test_inserthashtable_two():
+def test_inserthashtable_two() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
@@ -198,7 +199,7 @@ def test_inserthashtable_two():
     assert r
 
 
-def test_updatehashtable():
+def test_updatehashtable() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
@@ -220,7 +221,7 @@ def test_updatehashtable():
     # assert False
 
 
-def test_setuphashtable():
+def test_setuphashtable() -> None:
     f = rm_db_file()
 
     test_txt_file1_name = os.path.join("test", "data", "file1.txt")
@@ -234,7 +235,7 @@ def test_setuphashtable():
     assert r
 
 
-def test_md5indb():
+def test_md5indb() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
@@ -254,7 +255,7 @@ def test_md5indb():
     assert r
 
 
-def test_loadflds_nsf():
+def test_loadflds_nsf() -> None:
     debug(f"trying to read config from non-existent implicit config file")
 
     cfg_file_name = getbasefile() + ".ini"
@@ -269,17 +270,25 @@ def test_loadflds_nsf():
         pass
 
 
-def test_loadflds_sf():
-    debug(f"trying to read config from extant implicit config file")
-
-    src_cfg_file_name = os.path.join("test", "data", "example.ini")
+def create_default_config_file(ini_base_name: str = "example") -> tuple:
+    src_cfg_file_name = os.path.join("test", "data", f"{ini_base_name}.ini")
     dst_cfg_file_name = getbasefile() + ".ini"
-    debug(f"copying \"{src_cfg_file_name}\" to \"{dst_cfg_file_name}\"")
+    debug(f'copying "{src_cfg_file_name}" to "{dst_cfg_file_name}"')
 
     r = shutil.copyfile(src_cfg_file_name, dst_cfg_file_name)
     debug(f"shutil.copyfile returned {r}")
     if not os.path.exists(dst_cfg_file_name):
-        raise ValueError(f"failed to copy \"{src_cfg_file_name}\" to \"{dst_cfg_file_name}\"")
+        raise ValueError(
+            f'failed to copy "{src_cfg_file_name}" to "{dst_cfg_file_name}"'
+        )
+
+    return src_cfg_file_name, dst_cfg_file_name
+
+
+def test_loadflds_sf() -> None:
+    debug(f"trying to read config from extant implicit config file")
+
+    src_cfg_file_name, dst_cfg_file_name = create_default_config_file()
 
     result = loadflds()
     debug(f"loadflds() returned {type(result)=}")
@@ -291,7 +300,7 @@ def test_loadflds_sf():
     # assert False
 
 
-def test_readconfig():
+def test_readconfig_example() -> None:
     filename = os.path.join("test", "data", "example.ini")
     debug(f'reading config from explicit config file "{filename}"')
 
@@ -300,3 +309,59 @@ def test_readconfig():
     assert isinstance(result, tuple)
 
     # assert False
+
+
+def test_readconfig_posix() -> None:
+    filename = os.path.join("test", "data", "posix_style.ini")
+    debug(f'reading config from explicit config file "{filename}"')
+
+    result = readconfig(filename)
+    assert result is not None
+    assert isinstance(result, tuple)
+
+    # assert False
+
+
+def test_readconfig_windows() -> None:
+    filename = os.path.join("test", "data", "windows_style.ini")
+    debug(f'reading config from explicit config file "{filename}"')
+
+    result = readconfig(filename)
+    assert result is not None
+    assert isinstance(result, tuple)
+
+    # assert False
+
+
+def test_readconfig_mixed_p() -> None:
+    filename = os.path.join("test", "data", "mixed_styles_p.ini")
+    debug(f'reading config from explicit config file "{filename}"')
+
+    result = False
+    try:
+        readconfig(filename)
+    except ValueError as ex:
+        result = True
+    assert result
+
+    # assert False
+
+
+def test_readconfig_mixed_w() -> None:
+    filename = os.path.join("test", "data", "mixed_styles_w.ini")
+    debug(f'reading config from explicit config file "{filename}"')
+
+    result = False
+    try:
+        readconfig(filename)
+    except ValueError as ex:
+        result = True
+    assert result
+
+    # assert False
+
+
+def test_runfilechanges() -> None:
+    src_cfg_file_name, dst_cfg_file_name = create_default_config_file()
+    r = runfilechanges("WTF")
+    assert r

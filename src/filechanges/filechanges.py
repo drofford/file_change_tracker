@@ -305,11 +305,12 @@ def runfilechanges(ws) -> bool:
     # Invoke the function that loads and parses the config file
     debug("getting list of dirs to be scanned and extensions to be ignore")
     fldexts = loadflds()
-    debug(f"got back {len(fldexts[0])} dirs and {len(fldexts[1])} extensions") 
+    debug(f"got back {len(fldexts[0])} dirs and {len(fldexts[1])} extensions")
 
     changed = False
     for i, fld in enumerate(fldexts[0]):
         # Invoke the function that checks each folder for file changes
+        debug(f"{i=}, {fld=}")
         pass
 
     debug(f"returning {changed=}")
@@ -333,7 +334,7 @@ def checkfilechanges(folder: str, exclude: list, ws: object) -> bool:
 def loadflds() -> tuple:
     flds = []
     exts = []
-    
+
     config_file_name = getbasefile() + ".ini"
     if not os.path.isfile(config_file_name):
         raise ValueError(f'no such config file: "{config_file_name}"')
@@ -347,7 +348,7 @@ def readconfig(config_file_name: str) -> tuple:
     dirs_map = dict()
     exts_map = dict()
 
-    def process_dir(dir_path: str) -> None:
+    def process_dir(dir_path: str) -> str:
         if "\\" in dir_path and ":" in dir_path:
             debug(f'       processing windows-style path "{dir_path}"')
             style = "windows"
@@ -360,6 +361,8 @@ def readconfig(config_file_name: str) -> tuple:
         else:
             dirs_and_exts_map[dir_path]["count"] += 1
         dirs_map[dir_path] = {}
+
+        return style
 
     def process_exts(dir_path: str, exts: str) -> None:
         def process_ext(ext: str) -> None:
@@ -377,6 +380,8 @@ def readconfig(config_file_name: str) -> tuple:
     debug("=" * 78)
     debug(f'reading config file "{config_file_name}"')
     with open(config_file_name, "rt") as cfg:
+        all_styles = None
+
         for line_num, line_buf in enumerate(cfg):
             line_buf = line_buf.strip()
             debug("-" * 78)
@@ -391,17 +396,22 @@ def readconfig(config_file_name: str) -> tuple:
 
             if len(parts) == 1:
                 debug(f'    process dir "{parts[0]}"')
-                process_dir(parts[0])
+                this_style = process_dir(parts[0])
             elif len(parts) == 2:
                 debug(f'    process dir  "{parts[0]}"')
-                process_dir(parts[0])
+                this_style = process_dir(parts[0])
                 debug(f'    process exts "{parts[1]}"')
                 process_exts(parts[0], parts[1])
             else:
-                error(
-                    f"error in line {line_num}: too many '|' characters ({len(parts)-1})"
-                )
-                return None
+                msg = f"error in line {line_num}: too many '|' characters ({len(parts)-1})"
+                error(msg)
+                raise ValueError(msg)
+            if all_styles is None:
+                all_styles = this_style
+            elif this_style != all_styles:
+                msg = f'error in line {line_num}: {this_style} style dir path "{parts[0]}" cannot be mixed with {all_styles} dir paths'
+                error(msg)
+                raise ValueError(msg)
 
     debug("=" * 78)
     debug(f"dir to ext map = \n{pprint.pformat(dirs_and_exts_map)}")
