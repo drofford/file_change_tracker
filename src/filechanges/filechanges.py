@@ -402,7 +402,7 @@ def runfilechanges(ws: object) -> bool:
     # Invoke the function that loads and parses the config file
     debug("getting list of dirs to be scanned and extensions to be ignore")
     flds, exts = loadflds()
-    debug(f"got back {len(fldexts[0])} dirs and {len(fldexts[1])} extensions")
+    debug(f"got back {len(flds)} dirs and {len(exts)} extensions")
 
     changed = False
     for i, fld in enumerate(flds):
@@ -419,9 +419,11 @@ def runfilechanges(ws: object) -> bool:
 def checkfilechanges(folder: str, exclude: list, ws: object) -> bool:
     changed = False
     """Checks for files changes"""
+    debug(f'checking dir "{folder}"')
     for subdir, dirs, files in os.walk(folder):
         for fname in files:
             origin = os.path.join(subdir, fname)
+            debug(f'checking file "{origin}"')
             if os.path.isfile(origin):
                 # Get file extension and check if it is not excluded
                 # Get the file’s md5 hash
