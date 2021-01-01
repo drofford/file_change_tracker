@@ -1,8 +1,10 @@
 import os
 import os.path
+import shutil
 import sqlite3
 import tempfile
 import time
+import traceback
 
 from filechanges import __version__
 from filechanges.filechanges import (
@@ -11,10 +13,12 @@ from filechanges.filechanges import (
     createhashtable,
     createhashtableidx,
     debug,
+    error,
     getbasefile,
     getfileext,
     getmoddate,
     haschanged,
+    info,
     inserthashtable,
     md5indb,
     md5short,
@@ -250,20 +254,49 @@ def test_md5indb():
     assert r
 
 
-def test_readconfig():
-    filename = os.path.join("test", "data", "example.ini")
+def test_readconfig_nsf():
+    debug(f"trying to read config from non-existent implicit config file")
 
-    debug(f'reading config from default file: "{filename}"')
-    results = readconfig()
+    cfg_file_name = getbasefile() + ".ini"
+    if os.path.exists(cfg_file_name):
+        os.remove(cfg_file_name)
 
-    assert results is not None
-    assert False
+    try:
+        result = readconfig()
+        debug(f"readconfig() returned {result}")
+        assert False
+    except ValueError as ex:
+        pass
+
+
+def test_readconfig_sf():
+    debug(f"trying to read config from extant implicit config file")
+
+    src_cfg_file_name = os.path.join("test", "data", "example.ini")
+    dst_cfg_file_name = getbasefile() + ".ini"
+    debug(f"copying \"{src_cfg_file_name}\" to \"{dst_cfg_file_name}\"")
+
+    r = shutil.copyfile(src_cfg_file_name, dst_cfg_file_name)
+    debug(f"shutil.copyfile returned {r}")
+    if not os.path.exists(dst_cfg_file_name):
+        raise ValueError(f"failed to copy \"{src_cfg_file_name}\" to \"{dst_cfg_file_name}\"")
+
+    result = readconfig()
+    debug(f"readconfig() returned {type(result)=}")
+    debug(f"readconfig() returned {result=}")
+    assert result is not None
+    assert isinstance(result, tuple)
+    os.remove(dst_cfg_file_name)
+
+    # assert False
+
 
 def test__readconfig():
     filename = os.path.join("test", "data", "example.ini")
+    debug(f'reading config from explicit config file "{filename}"')
 
-    debug(f'reading config from explicit "{filename}"')
-    results = _readconfig(filename)
+    result = _readconfig(filename)
+    assert result is not None
+    assert isinstance(result, tuple)
 
-    assert results is not None
-    assert False
+    # assert False

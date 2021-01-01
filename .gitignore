@@ -7,5 +7,5 @@
 *.pyc
 __pycache__/
 *.dummy
-
+filechanges.ini
 notes.txt
