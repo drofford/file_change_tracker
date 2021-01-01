@@ -84,6 +84,7 @@ def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
             result = True
     except sqlite3.OperationalError as err:
         error(str(err))
+        result = None
     finally:
         cursor.close()
 
@@ -140,7 +141,7 @@ def getfileext(fname: str) -> str:
     Extension does NOT include the dot. Dotfiles like ".bashrc" are handled as
     expected, with the filename = ".bashrc" and the extension as "".
     """
-    return os.path.splitext(os.path.basename(fname))[1][1:]
+    return os.path.splitext(os.path.basename(fname))[1]
 
 
 def haschanged(fname: str, md5: str) -> bool:
@@ -185,13 +186,13 @@ def md5short(fname):
     """Get md5 file hash tag"""
 
     data = open(fname, "rb").read()
-    debug(f'read {len(data)} {type(data)} from "{fname}"')
+    # debug(f'read {len(data)} {type(data)} from "{fname}"')
 
     md = hashlib.new("md5")
     md.update(data)
     md5val = md.hexdigest()
 
-    debug(f'MD5 for "{fname=}" is {md5val}')
+    # debug(f'MD5 for "{fname=}" is {md5val}')
 
     return md5val
 
@@ -288,16 +289,19 @@ def md5indb(fname: str, table: str = FILE_TABLE_NAME) -> bool:
     conn = connectdb()
     if conn is not None:
         try:
-            query = f"SELECT md5 FROM {table} WHERE fname = ?"
+            query = f"SELECT fname, md5 FROM {table} WHERE fname = ?"
+            debug(f"{query=}")
             args = (fname,)
-            result = corecursor(conn, query, args)
-            debug(f"{result=}")
-            result = True
+            debug(f"{args=}")
+            r = corecursor(conn, query, args)
+            debug(f"{r=}")
+            result = r
         except sqlite3.OperationalError as err:
             error(str(err))
         finally:
             conn.close()
 
+    debug(f"{result=}")
     return result
 
 
@@ -412,6 +416,9 @@ def runfilechanges(ws: object) -> bool:
         r = checkfilechanges(fld, exts, ws)
         debug(f"checkfilechanges(...) returned {r=}")
 
+        if r:
+            changed = r
+
     debug(f"returning {changed=}")
     return changed
 
@@ -419,14 +426,51 @@ def runfilechanges(ws: object) -> bool:
 def checkfilechanges(folder: str, exclude: list, ws: object) -> bool:
     changed = False
     """Checks for files changes"""
+    debug("=" * 100)
     debug(f'checking dir "{folder}"')
     for subdir, dirs, files in os.walk(folder):
         for fname in files:
             origin = os.path.join(subdir, fname)
-            debug(f'checking file "{origin}"')
-            if os.path.isfile(origin):
+            debug("-" * 100)
+            debug(f'    checking file "{origin}"')
+            if not os.path.isfile(origin):
+                debug(f'        skipping non-file "{origin}"')
+            else:
                 # Get file extension and check if it is not excluded
-                # Get the file’s md5 hash
-                # If the file has changed, add it to the Excel report
-                pass
+                ext = getfileext(origin)
+                debug(f'        file extension is "{ext}"')
+                debug(f'        checking if "{ext}" is in {exclude}')
+                if len(ext) > 0 and ext in exclude:
+                    debug(f'            skipping excluded extension "{ext}"')
+                else:
+                    # Get the file’s md5 hash
+                    hash = md5short(origin)
+                    debug(f"        calculated file MD5 hash as {hash}")
+                    add_to_report = False
+                    debug(f"        checking if file already in hash table")
+                    if not md5indb(origin):
+                        debug(f"            file not in hash table - will add")
+                        r = inserthashtable(origin, hash)
+                        debug(f"            file not in hash table - added ({r})")
+                        add_to_report = True
+                    elif not haschanged(origin, hash):
+                        debug(
+                            f"            file in hash table and MD5 unchanged - not update"
+                        )
+                    else:
+                        debug(
+                            f"            file in hash table and MD5 *has* changed - will update"
+                        )
+                        r = updatehashtable(origin, hash)
+                        debug(
+                            f"            file in hash table and MD5 *has* changed - updated ({r})"
+                        )
+                        add_to_report = True
+                        # If the file has changed, add it to the Excel report
+                        debug(f"file in hash table and MD5 *has* changed - updated")
+                    if add_to_report:
+                        info('Will add file "{origin}" to report')
+                        changed = True
+    debug("=" * 100)
+    debug(f"returning {changed=}")
     return changed
