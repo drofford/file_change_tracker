@@ -323,7 +323,7 @@ def checkfilechanges(folder, exclude, ws):
     return changed
 
 
-def readconfig():
+def loadflds():
     flds = []
     exts = []
     
@@ -331,11 +331,11 @@ def readconfig():
     if not os.path.isfile(config_file_name):
         raise ValueError(f'no such config file: "{config_file_name}"')
 
-    flds, exts = _readconfig(config_file_name)
+    flds, exts = readconfig(config_file_name)
     return flds, exts
 
 
-def _readconfig(config_file_name):
+def readconfig(config_file_name):
     dirs_and_exts_map = dict()
     dirs_map = dict()
     exts_map = dict()

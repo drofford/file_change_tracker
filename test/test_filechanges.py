@@ -20,6 +20,7 @@ from filechanges.filechanges import (
     haschanged,
     info,
     inserthashtable,
+    loadflds,
     md5indb,
     md5short,
     readconfig,
@@ -27,7 +28,6 @@ from filechanges.filechanges import (
     setuphashtable,
     tableexists,
     updatehashtable,
-    _readconfig,
 )
 
 
@@ -254,7 +254,7 @@ def test_md5indb():
     assert r
 
 
-def test_readconfig_nsf():
+def test_loadflds_nsf():
     debug(f"trying to read config from non-existent implicit config file")
 
     cfg_file_name = getbasefile() + ".ini"
@@ -262,14 +262,14 @@ def test_readconfig_nsf():
         os.remove(cfg_file_name)
 
     try:
-        result = readconfig()
-        debug(f"readconfig() returned {result}")
+        result = loadflds()
+        debug(f"loadflds() returned {result}")
         assert False
     except ValueError as ex:
         pass
 
 
-def test_readconfig_sf():
+def test_loadflds_sf():
     debug(f"trying to read config from extant implicit config file")
 
     src_cfg_file_name = os.path.join("test", "data", "example.ini")
@@ -281,9 +281,9 @@ def test_readconfig_sf():
     if not os.path.exists(dst_cfg_file_name):
         raise ValueError(f"failed to copy \"{src_cfg_file_name}\" to \"{dst_cfg_file_name}\"")
 
-    result = readconfig()
-    debug(f"readconfig() returned {type(result)=}")
-    debug(f"readconfig() returned {result=}")
+    result = loadflds()
+    debug(f"loadflds() returned {type(result)=}")
+    debug(f"loadflds() returned {result=}")
     assert result is not None
     assert isinstance(result, tuple)
     os.remove(dst_cfg_file_name)
@@ -291,11 +291,11 @@ def test_readconfig_sf():
     # assert False
 
 
-def test__readconfig():
+def test_readconfig():
     filename = os.path.join("test", "data", "example.ini")
     debug(f'reading config from explicit config file "{filename}"')
 
-    result = _readconfig(filename)
+    result = readconfig(filename)
     assert result is not None
     assert isinstance(result, tuple)
 
