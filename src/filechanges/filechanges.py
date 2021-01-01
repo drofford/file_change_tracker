@@ -301,36 +301,6 @@ def md5indb(fname: str, table: str = FILE_TABLE_NAME) -> bool:
     return result
 
 
-def runfilechanges(ws) -> bool:
-    # Invoke the function that loads and parses the config file
-    debug("getting list of dirs to be scanned and extensions to be ignore")
-    fldexts = loadflds()
-    debug(f"got back {len(fldexts[0])} dirs and {len(fldexts[1])} extensions")
-
-    changed = False
-    for i, fld in enumerate(fldexts[0]):
-        # Invoke the function that checks each folder for file changes
-        debug(f"{i=}, {fld=}")
-        pass
-
-    debug(f"returning {changed=}")
-    return changed
-
-
-def checkfilechanges(folder: str, exclude: list, ws: object) -> bool:
-    changed = False
-    """Checks for files changes"""
-    for subdir, dirs, files in os.walk(folder):
-        for fname in files:
-            origin = os.path.join(subdir, fname)
-            if os.path.isfile(origin):
-                # Get file extension and check if it is not excluded
-                # Get the file’s md5 hash
-                # If the file has changed, add it to the Excel report
-                pass
-    return changed
-
-
 def loadflds() -> tuple:
     flds = []
     exts = []
@@ -426,3 +396,35 @@ def readconfig(config_file_name: str) -> tuple:
     a = sorted(list(dirs_map.keys()))
     b = sorted(list(exts_map.keys()))
     return a, b
+
+
+def runfilechanges(ws: object) -> bool:
+    # Invoke the function that loads and parses the config file
+    debug("getting list of dirs to be scanned and extensions to be ignore")
+    flds, exts = loadflds()
+    debug(f"got back {len(fldexts[0])} dirs and {len(fldexts[1])} extensions")
+
+    changed = False
+    for i, fld in enumerate(flds):
+        # Invoke the function that checks each folder for file changes
+        debug(f"{i=}, {fld=}")
+
+        r = checkfilechanges(fld, exts, ws)
+        debug(f"checkfilechanges(...) returned {r=}")
+
+    debug(f"returning {changed=}")
+    return changed
+
+
+def checkfilechanges(folder: str, exclude: list, ws: object) -> bool:
+    changed = False
+    """Checks for files changes"""
+    for subdir, dirs, files in os.walk(folder):
+        for fname in files:
+            origin = os.path.join(subdir, fname)
+            if os.path.isfile(origin):
+                # Get file extension and check if it is not excluded
+                # Get the file’s md5 hash
+                # If the file has changed, add it to the Excel report
+                pass
+    return changed
