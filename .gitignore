@@ -9,3 +9,5 @@ __pycache__/
 *.dummy
 filechanges.ini
 notes.txt
+out
+err
