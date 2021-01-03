@@ -450,6 +450,11 @@ def checkfilechanges(folder: str, exclude: list, ws: object) -> bool:
                     debug(f"        checking if file already in hash table")
                     if not md5indb(origin):
                         debug(f"            file not in hash table - will add")
+
+                        # Get the file’s md5 hash
+                        hash = md5short(origin)
+                        debug(f"        calculated file MD5 hash as {hash}")
+                        
                         r = inserthashtable(origin, hash)
                         debug(f"            file not in hash table - added ({r})")
                         add_to_report = True
@@ -469,7 +474,7 @@ def checkfilechanges(folder: str, exclude: list, ws: object) -> bool:
                         # If the file has changed, add it to the Excel report
                         debug(f"file in hash table and MD5 *has* changed - updated")
                     if add_to_report:
-                        info('Will add file "{origin}" to report')
+                        info(f'Will add file "{origin}" to report')
                         changed = True
     debug("=" * 100)
     debug(f"returning {changed=}")

@@ -371,12 +371,79 @@ def test_runfilechanges() -> None:
     else:
         style = "posix"
 
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
     debug(f"Should add everything / update nothing")
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
     src_cfg_file_name, dst_cfg_file_name = create_default_config_file(style + "_style")
     r = runfilechanges("WTF")
-    assert r
+    debug(f"{r=}")
+    # assert r
 
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
     debug(f"Should add nothing / update nothing")
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
     src_cfg_file_name, dst_cfg_file_name = create_default_config_file(style + "_style")
     r = runfilechanges("WTF")
-    assert not r
+    debug(f"{r=}")
+    # assert not r
+
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
+    debug(f"Should add volatile_file.txt / update nothing")
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
+    # create a temp file in the test/files/dynamic subdir
+    outfile = os.path.join("test", "files", "dynamic", "volatile_file.txt")
+
+    with open(outfile, "wt") as fh:
+        fh.write(str(time.time()))
+        debug(f"created file \"{fh.name}\"")
+
+    src_cfg_file_name, dst_cfg_file_name = create_default_config_file(style + "_style")
+    r = runfilechanges("WTF")
+    # assert r
+    debug(f"{r=}")
+
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
+    debug(f"Should add nothing / update nothing")
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
+    src_cfg_file_name, dst_cfg_file_name = create_default_config_file(style + "_style")
+    r = runfilechanges("WTF")
+    debug(f"{r=}")
+    # assert not r
+
+    with open(outfile, "wt") as fh:
+        fh.write(str(time.time()))
+        debug(f"recreated file \"{fh.name}\"")
+
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
+    debug(f"Should add nothing / update volatile_file.txt")
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
+    src_cfg_file_name, dst_cfg_file_name = create_default_config_file(style + "_style")
+    r = runfilechanges("WTF")
+    debug(f"{r=}")
+    # assert r
+
+    debug("="*100)
+    debug("="*100)
+    debug("="*100)
+        
+    assert False

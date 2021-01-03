@@ -8,7 +8,7 @@ format:
 	@black `find . -name \*.py`
 
 pytest:
-	@PYTHONPATH=src poetry run pytest -v 2>err >out
+	@PYTHONPATH=src poetry run pytest -v
 
 checkin:
 	@git commit -a -m "Saving changes"
