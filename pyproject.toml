@@ -13,6 +13,7 @@ daiquiri = "^3.0.0"
 pytest = "^5.2"
 black = "^20.8b1"
 tox = "^3.20.1"
+pylint = "^2.6.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

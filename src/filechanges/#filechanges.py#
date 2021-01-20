@@ -1,7 +1,7 @@
 import daiquiri
 import hashlib
 import inspect
-import logging as ZZLOG
+import logging as LOG
 import os
 import pprint
 import re
@@ -11,9 +11,9 @@ import sqlite3
 #
 # set up logging
 #
-level = ZZLOG.DEBUG if os.getenv("DEBUG", "") == "Y" else ZZLOG.INFO
-ZZLOG.basicConfig(format="%(asctime)s %(levelname)s : %(message)s", level=level)
-logger = ZZLOG.getLogger()
+level = LOG.DEBUG if os.getenv("DEBUG", "") == "Y" else LOG.INFO
+LOG.basicConfig(format="%(asctime)s %(levelname)s : %(message)s", level=level)
+logger = LOG.getLogger()
 
 #
 # constants
@@ -61,7 +61,7 @@ def connectdb() -> sqlite3.Connection:
         exit(1)
 
 
-def corecursor(conn: sqlite3.Connection, query: str, args: list = None, hits:list=None) -> bool:
+def corecursor(conn: sqlite3.Connection, query: str, args: list = None) -> bool:
     debug(f'query = "{query}"')
 
     result = False
@@ -81,11 +81,9 @@ def corecursor(conn: sqlite3.Connection, query: str, args: list = None, hits:lis
         if numrows > 0:
             for row in rows:
                 debug(f"  {row=}")
-                if hits is not None:
-                    hits.append(list(row))
             result = True
     except sqlite3.OperationalError as err:
-        error(str(err)) # fatal, maybe?
+        error(str(err))
         result = None
     finally:
         cursor.close()
@@ -284,11 +282,10 @@ def setuphashtable(fname, md5, table: str = FILE_TABLE_NAME) -> bool:
     return False
 
 
-def md5indb(fname: str, table: str = FILE_TABLE_NAME):
+def md5indb(fname: str, table: str = FILE_TABLE_NAME) -> bool:
     """Checks if md5 hash tag exists in the SQLite DB"""
 
-    result = None
-    
+    result = False
     conn = connectdb()
     if conn is not None:
         try:
@@ -296,11 +293,9 @@ def md5indb(fname: str, table: str = FILE_TABLE_NAME):
             debug(f"{query=}")
             args = (fname,)
             debug(f"{args=}")
-            hits = list()
-            r = corecursor(conn, query, args, hits)
-            debug(f"{r=}, {hits=}")
-            if r and len(hits) == 1:
-                result = hits[0]
+            r = corecursor(conn, query, args)
+            debug(f"{r=}")
+            result = r
         except sqlite3.OperationalError as err:
             error(str(err))
         finally:
@@ -490,7 +485,15 @@ def checkfilechanges(folder: str, exclude: list, ws: object) -> bool:
 
 
 def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--ini", metavar="FILENAME", help="""specifies the name of the
+    the file from which a custom ini will be read. If not specified, this will default to {}
+    """.format())
+                        
     # read config
+
+
     
     # connect to database, creating if necessary
 

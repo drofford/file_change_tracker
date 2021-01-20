@@ -21,6 +21,7 @@ from filechanges.filechanges import (
     info,
     inserthashtable,
     loadflds,
+    logger,
     md5indb,
     md5short,
     readconfig,
@@ -39,15 +40,15 @@ def rm_db_file() -> str:
     return db_filename
 
 
-def xtest_version() -> None:
+def __test_version() -> None:
     assert __version__ == "0.1.0"
 
 
-def xtest_getbasefile() -> None:
+def __test_getbasefile() -> None:
     assert getbasefile() == "filechanges"
 
 
-def xtest_connectdb_new() -> None:
+def __test_connectdb_new() -> None:
     f = rm_db_file()
     assert not os.path.exists(f)
 
@@ -60,8 +61,8 @@ def xtest_connectdb_new() -> None:
     return f
 
 
-def xtest_connectdb_extant() -> None:
-    f = xtest_connectdb_new()
+def __test_connectdb_extant() -> None:
+    f = test_connectdb_new()
     assert os.path.exists(f)
 
     conn = connectdb()
@@ -71,20 +72,20 @@ def xtest_connectdb_extant() -> None:
     conn.close()
 
 
-def xtest_tableexists_false() -> None:
-    xtest_connectdb_new()
+def __test_tableexists_false() -> None:
+    test_connectdb_new()
 
     assert not tableexists(FILE_TABLE_NAME)
 
 
-def xtest_createhashtable() -> None:
+def __test_createhashtable() -> None:
     f = rm_db_file()
 
     assert createhashtable(FILE_TABLE_NAME)
     assert not createhashtable(FILE_TABLE_NAME)
 
 
-def xtest_getfileext() -> None:
+def __test_getfileext() -> None:
     assert getfileext("abc.txt") == ".txt"
     assert getfileext("/tmp/abc.txt") == ".txt"
     assert getfileext("/tmp/a/b/c/def.txt") == ".txt"
@@ -93,7 +94,7 @@ def xtest_getfileext() -> None:
     assert getfileext(".abc.def") == ".def"
 
 
-def xtest_getmoddate() -> None:
+def __test_getmoddate() -> None:
     assert getmoddate("noname.txt") is None
 
     with tempfile.TemporaryFile(mode="w+t") as tf:
@@ -106,7 +107,7 @@ def xtest_getmoddate() -> None:
         assert moddate > 0.0
 
 
-def xtest_md5short() -> None:
+def __test_md5short() -> None:
     test_txt_file_name = os.path.join("test", "data", "file1.txt")
     test_md5_file_name = test_txt_file_name + ".md5"
 
@@ -122,7 +123,7 @@ def xtest_md5short() -> None:
     assert computed_md5 == actual_md5
 
 
-def test_haschanged() -> None:
+def __test_haschanged() -> None:
     test_txt_file_name = os.path.join("test", "data", "file1.txt")
     computed_md5 = md5short(test_txt_file_name)
 
@@ -132,13 +133,13 @@ def test_haschanged() -> None:
     assert haschanged(test_txt_file_name, adjusted_md5)
 
 
-def xtest_createhashtableidx() -> None:
+def __test_createhashtableidx() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
 
 
-def xtest_runcmd_no_conn() -> None:
+def __test_runcmd_no_conn() -> None:
     f = rm_db_file()
 
     cmd = "CREATE TABLE dummy (id integer primary key, fname text, lname text)"
@@ -153,7 +154,7 @@ def xtest_runcmd_no_conn() -> None:
     assert not r
 
 
-def xtest_inserthashtable_one() -> None:
+def __test_inserthashtable_one() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
@@ -173,7 +174,7 @@ def xtest_inserthashtable_one() -> None:
     assert not r
 
 
-def xtest_inserthashtable_two() -> None:
+def __test_inserthashtable_two() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
@@ -199,7 +200,7 @@ def xtest_inserthashtable_two() -> None:
     assert r
 
 
-def xtest_updatehashtable() -> None:
+def __test_updatehashtable() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
@@ -221,7 +222,7 @@ def xtest_updatehashtable() -> None:
     # assert False
 
 
-def xtest_setuphashtable() -> None:
+def __test_setuphashtable() -> None:
     f = rm_db_file()
 
     test_txt_file1_name = os.path.join("test", "data", "file1.txt")
@@ -235,7 +236,7 @@ def xtest_setuphashtable() -> None:
     assert r
 
 
-def xtest_md5indb() -> None:
+def __test_md5indb() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
@@ -246,16 +247,25 @@ def xtest_md5indb() -> None:
     test_txt_file1_computed_md5 = md5short(test_txt_file1_name)
     debug(f"computed MD5 = {test_txt_file1_computed_md5}")
 
-    r = md5indb(test_txt_file1_name)
-    debug(f"test_txt_file1_name is {'' if r else 'not '}in the table {FILE_TABLE_NAME}")
-    assert r
+    if md5_from_db := md5indb(test_txt_file1_name) is None:
+        debug(f"(a) file \"{test_txt_file1_name}\" with computed MD5 \"{test_txt_file1_computed_md5}\" not found in database")
+    else:
+        debug(f"(a) file \"{test_txt_file1_name}\" with computed MD5 \"{test_txt_file1_computed_md5}\" found in database with D/B MD5 \"{md5_from_db}\"")
+    assert md5_from_db is None
 
     r = inserthashtable(test_txt_file1_name, test_txt_file1_computed_md5)
     debug(f"inserthashtable returned {r}")
     assert r
 
+    if md5_from_db := md5indb(test_txt_file1_name) is None:
+        debug(f"(b) file \"{test_txt_file1_name}\" with computed MD5 \"{test_txt_file1_computed_md5}\" not found in database")
+    else:
+        debug(f"(b) file \"{test_txt_file1_name}\" with computed MD5 \"{test_txt_file1_computed_md5}\" found in database with D/B MD5 \"{md5_from_db}\"")
+    assert md5_from_db is None
 
-def xtest_loadflds_nsf() -> None:
+    assert False
+
+def __test_loadflds_nsf() -> None:
     debug(f"trying to read config from non-existent implicit config file")
 
     cfg_file_name = getbasefile() + ".ini"
@@ -285,7 +295,7 @@ def create_default_config_file(ini_base_name: str = "example") -> tuple:
     return src_cfg_file_name, dst_cfg_file_name
 
 
-def xtest_loadflds_sf() -> None:
+def __test_loadflds_sf() -> None:
     debug(f"trying to read config from extant implicit config file")
 
     src_cfg_file_name, dst_cfg_file_name = create_default_config_file()
@@ -300,7 +310,7 @@ def xtest_loadflds_sf() -> None:
     # assert False
 
 
-def xtest_readconfig_example() -> None:
+def __test_readconfig_example() -> None:
     filename = os.path.join("test", "data", "example.ini")
     debug(f'reading config from explicit config file "{filename}"')
 
@@ -311,7 +321,7 @@ def xtest_readconfig_example() -> None:
     # assert False
 
 
-def xtest_readconfig_posix() -> None:
+def __test_readconfig_posix() -> None:
     filename = os.path.join("test", "data", "posix_style.ini")
     debug(f'reading config from explicit config file "{filename}"')
 
@@ -322,7 +332,7 @@ def xtest_readconfig_posix() -> None:
     # assert False
 
 
-def xtest_readconfig_windows() -> None:
+def __test_readconfig_windows() -> None:
     filename = os.path.join("test", "data", "windows_style.ini")
     debug(f'reading config from explicit config file "{filename}"')
 
@@ -333,7 +343,7 @@ def xtest_readconfig_windows() -> None:
     # assert False
 
 
-def xtest_readconfig_mixed_p() -> None:
+def __test_readconfig_mixed_p() -> None:
     filename = os.path.join("test", "data", "mixed_styles_p.ini")
     debug(f'reading config from explicit config file "{filename}"')
 
@@ -347,7 +357,7 @@ def xtest_readconfig_mixed_p() -> None:
     # assert False
 
 
-def xtest_readconfig_mixed_w() -> None:
+def __test_readconfig_mixed_w() -> None:
     filename = os.path.join("test", "data", "mixed_styles_w.ini")
     debug(f'reading config from explicit config file "{filename}"')
 
@@ -361,7 +371,7 @@ def xtest_readconfig_mixed_w() -> None:
     # assert False
 
 
-def test_runfilechanges() -> None:
+def __test_runfilechanges() -> None:
     f = rm_db_file()
     assert createhashtable(FILE_TABLE_NAME)
     assert createhashtableidx(FILE_TABLE_NAME)
