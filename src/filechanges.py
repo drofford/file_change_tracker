@@ -5,6 +5,7 @@ import os.path
 import sys
 import sqlite3
 
+from functools import lru_cache
 
 #
 # constants
@@ -67,86 +68,76 @@ def trim_to_none(inp_value):
 
 
 #
-# helper class for D/B connection pool
-#
-class DbConnections:
-
-    connections = dict()
-
-    @classmethod
-    def connect(cls, dbfilename, timeout=2):
-        trace(f"enter: {dbfilename=}, {timeout=}")
-
-        if not dbfilename.endswith(".db"):
-            dbfilename += ".db"
-            debug(f"updated {dbfilename=}")
-
-        if dbfilename in cls.connections:
-            debug(
-                f"reusing D/B connection for {dbfilename=}: {cls.connections[dbfilename]}"
-            )
-        else:
-            debug(f"will create new D/B connection for {dbfilename=}")
-            try:
-                cls.connections[dbfilename] = sqlite3.connect(
-                    dbfilename, timeout=timeout
-                )
-                debug(
-                    f"created new D/B connection {dbfilename=}: {cls.connections[dbfilename]}"
-                )
-
-            except Exception as ex:
-                fatal(
-                    f"Failed to establish a D/B connection for {dbfilename=}. Exception is: {ex}"
-                )
-
-        return cls.connections[dbfilename]
-
-    @classmethod
-    def close(cls, dbfilename):
-        trace(f"enter: {dbfilename=}, {timeout=}")
-        if not dbfilename.endswith(".db"):
-            dbfilename += ".db"
-            debug(f"updated {dbfilename=}")
-
-        if dbfilename in cls.connections:
-            debug(
-                f"closing D/B connection for {dbfilename=}: {cls.connections[dbfilename]}"
-            )
-            cls.connections[dbfilename].close()
-            del cls.connections[dbfilename]
-
-    @classmethod
-    def close_all(cls):
-        for x in cls.connections.keys():
-            cls.close(x)
-            cls.connections = dict()
-        debug(f"all D/B connections closed")
-
-
-#
 # ============================================
 # functions required by website's requirements
 # ============================================
 #
 
 
+def corecursor(
+    conn: sqlite3.Connection, query: str, args: list = None, hits: list = None
+) -> bool:
+    """Perform a query on the database table."""
+
+    trace(f'query = "{query}"')
+
+    result = False
+    cursor = conn.cursor()
+    try:
+        if args is None:
+            debug("invoking cursor.execute() without args")
+            r = cursor.execute(query)
+            debug(f"cursor.execute() returned {r}")
+        else:
+            debug("invoking cursor.execute() with {args=}")
+            r = cursor.execute(query, args)
+            debug(f"cursor.execute() returned {r}")
+        rows = cursor.fetchall()
+        numrows = len(list(rows))
+        debug(f"{numrows=}")
+        debug(f"before {len(hits) if hits is not None else 0}")
+        if numrows > 0:
+            for row in rows:
+                debug(f"  {row=}")
+                if hits is not None:
+                    hits.append(list(row))
+            result = True
+        debug(f"after  {len(hits) if hits is not None else 0}")
+    except sqlite3.OperationalError as err:
+        error(str(err))  # fatal, maybe?
+        result = None
+    finally:
+        cursor.close()
+
+    debug(f"returning {result}")
+    return result
+
+
+def connectdb(dbfilename: str = None) -> sqlite3.Connection:
+    if dbfilename is None:
+        dbfilename = getbasefile()
+    if not dbfilename.endswith(".db"):
+        dbfilename += ".db"
+    return _connectdb(dbfilename)
+
+
+@lru_cache
+def _connectdb(dbfilename: str) -> sqlite3.Connection:
+    print(f'connecting to dbfilename "{dbfilename}"')
+    try:
+        con = sqlite3.connect(dbfilename, timeout=2)
+        print(f"success: {con=}")
+        return con
+
+    except Exception as ex:
+        print(f"fork it: the shirt has really hit the fan: {ex=}")
+        exit(1)
+
+
 def getbasefile() -> str:
     """Returns the name of the SQLite DB file"""
     trace("enter")
     return os.path.splitext(os.path.basename(__file__))[0]
-
-
-def connectdb(dbfilename=None):
-    """Connects to the SQLite DB"""
-    trace("enter")
-
-    debug(f"initial {dbfilename=}")
-    if (dbfilename := trim_to_none(dbfilename)) is None:
-        dbfilename = getbasefile()
-        debug(f"updated {dbfilename=}")
-
-    return DbConnections.connect(dbfilename)
 
 
 def tableexists(dbfilename=None, tablename=TABLE_NAME):
@@ -161,9 +152,10 @@ def tableexists(dbfilename=None, tablename=TABLE_NAME):
         query = "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
         debug(f"{query=}")
 
-        args = (table,)
+        args = (tablename,)
         debug(f"{args=}")
-        # result = corecursor(conn, query, args)
+
+        result = corecursor(conn, query, args)
 
     except sqlite3.OperationalError as err:
         error(str(err))
@@ -178,7 +170,9 @@ def main():
 
     basename = getbasefile()
     conn = connectdb(basename)
-    info(f"connected to database file {basename}")
+    info(f'connected to database file "{basename}"')
+
+    info(f"table \"{TABLE_NAME}\" {'exists' if tableexists() else 'does not exist'}")
 
 
 if __name__ == "__main__":
