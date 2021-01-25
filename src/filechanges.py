@@ -17,11 +17,13 @@ from functools import lru_cache
 #
 conn = None
 
-global dbfilename, tablename, flds, exts
+global cfgfilename, dbfilename, tablename, flds, exts
+cfgfilename = None
 dbfilename = None
 tablename = "status"
 flds      = None
 exts = None
+
 #
 # do some basic initial setup
 #
@@ -163,7 +165,7 @@ def loadflds() -> tuple:
 
     global flds, exts
 
-    def readconfig(config_file_name: str) -> tuple:
+    def readconfig() -> tuple:
         trace(f"entry")
 
         dirs_and_exts_map = dict()
@@ -205,8 +207,8 @@ def loadflds() -> tuple:
                 exts_map[ext] = None
 
         debug("=" * 78)
-        debug(f'reading config file "{config_file_name}"')
-        with open(config_file_name, "rt") as cfg:
+        debug(f'reading config file "{cfgfilename}"')
+        with open(cfgfilename, "rt") as cfg:
             all_styles = None
 
             for line_num, line_buf in enumerate(cfg):
@@ -254,11 +256,8 @@ def loadflds() -> tuple:
         b = sorted(list(exts_map.keys()))
         return a, b
 
-    config_file_name = getbasefile() + ".ini"
-    if not os.path.isfile(config_file_name):
-        raise ValueError(f'no such config file: "{config_file_name}"')
-
-    flds, exts = readconfig(config_file_name)
+    assert cfgfilename is not None
+    flds, exts = readconfig()
 
 def runcmd(cmd: str, args: list = None, hits: list = None) -> bool:
     """Run a specific command on the SQLite DB"""
@@ -344,9 +343,10 @@ def main():
     """Main function - does all of the control logic"""
     trace("enter")
 
-    global dbfilename
+    global cfgfilename, dbfilename
 
     basename = getbasefile()
+    cfgfilename = basename + ".ini"
     dbfilename = basename + ".db"
 
     #
@@ -363,6 +363,7 @@ def main():
     # read in and parse the config file
     #
     loadflds()
+    info(f"configuration loaded from file \"{cfgfilename}\"")
     assert flds is not None
     assert exts is not None
 
