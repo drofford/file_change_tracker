@@ -59,9 +59,39 @@ def create_table(conn, table_name) -> None:
 def insert_record(conn, table_name, fname, md5, mod_date):
     result = None
 
-    cmd = f"INSERT INTO {table_name} (fname, md5, moddate) VALUES ('{fname}', '{md5}', {mod_date})"
+    cmd = f"INSERT INTO {table_name} (fname, md5, moddate) VALUES (?, ?, ?)"
     print(f"command = {cmd}")
 
+    args = (fname, md5, mod_date)
+    print(f"{args=}")
+
+    cursor = conn.cursor()
+    try:
+        print("invoking cursor.execute() with args")
+        r = cursor.execute(cmd, args)
+        print(f"cursor.execute() returned {r}")
+
+        rows = cursor.fetchall()
+        numrows = len(list(rows))
+        print(f"{numrows=}")
+        if numrows > 0:
+            for row in rows:
+                print(f"  {row=}")
+        result = True
+
+        r = conn.commit()
+        print(f"conn.commit() returned {r}")
+
+    except sqlite3.IntegrityError as err:
+        print(str(err))
+
+    except sqlite3.OperationalError as err:
+        print(str(err))
+
+    finally:
+        cursor.close()
+
+    return result
 
 
 def main():
@@ -71,6 +101,7 @@ def main():
     create_table(conn, TABLE_NAME)
 
     insert_record(conn, TABLE_NAME, "FILE1.TXT", "md5-1", 1)
+    insert_record(conn, TABLE_NAME, "FILE2.TXT", "md5-2", 2)
 
     conn.close()
 

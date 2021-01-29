@@ -115,7 +115,16 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
 
                 hits = list()
                 file_in_table = is_file_in_table(origin, hits=hits)
-                info(f"QQRXQ {origin=} {file_in_table=} {hits=}")
+                info(f"QQRXQ {origin=} {file_in_table=}")
+                info(f"QQRXQ     {hits=}")
+                info(f"QQRXQ     {type(hits)=}")
+                if len(hits) > 0:
+                    if len(hits[0]) == 2:
+                        info(f"QQRXQ      {hits[0][0]=}")
+                        info(f"QQRXQ      {hits[0][1]=}")
+                        md5_val_from_db = hits[0][1]
+                # info(f"QQRXQ     {hits[0]=}")
+                # info(f"QQRXQ     {type(hits[0])=}")
 
                 cur_md5_val = md5short(origin)
                 info(f"QQRXQ {origin=} {cur_md5_val=}")
@@ -123,6 +132,13 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
                 if not file_in_table:
                     r = inserthashtable(origin, cur_md5_val)
                     info(f"QQRXQ {origin=} {cur_md5_val=} inserthashtable returned {r=}")
+                    need_to_commit = True
+                elif cur_md5_val == md5_val_from_db:
+                    info(f"QQRXQ UP-TO-DATE: {origin=} {cur_md5_val=} {md5_val_from_db=}")
+                else:
+                    info(f"QQRXQ NEED-TO-UPDATE: {origin=} {cur_md5_val=} {md5_val_from_db=}")
+                    r = updatehashtable(origin, cur_md5_val)
+                    info(f"QQRXQ {origin=} {cur_md5_val=} updatehashtable returned {r=}")
                     need_to_commit = True
 
                 # # Get the file’s md5 hash
@@ -163,8 +179,8 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
         #     r = runcmd("commit", hits=hits)
         #     info(f"{need_to_commit=}, {r=}, {hits=}")
     debug("=" * 100)
-    debug(f"returning {changed=}")
-    return changed
+    debug(f"returning {need_to_commit=} {changed=}")
+    return need_to_commit
 
 
 def connectdb() -> sqlite3.Connection:
@@ -302,22 +318,25 @@ def getmoddate(fname: str) -> object:
 def inserthashtable(fname:str, md5:str) -> bool:
     """Insert into the SQLite File Table"""
 
-    cmd = "BEGIN TRANSACTION"
-    info("QQRXQ beginning transaction")
-    result = runcmd(cmd)
-    info(f"QQRXQ runcmd BEGIN TRANSACTION returned {result=}")
+    # cmd = "BEGIN TRANSACTION"
+    # info("QQRXQ beginning transaction")
+    # hits = list()
+    # result = runcmd(cmd, hits=hits)
+    # info(f"QQRXQ runcmd BEGIN TRANSACTION returned {result=}, {hits=}")
 
     cmd = f"INSERT INTO {table_name} (fname, md5, moddate) VALUES (?, ?, ?)"
     args = (fname, md5, int(getmoddate(fname)))
 
     info(f"QQRXQ running SQL INSERT command for {md5=} {fname=}")
-    result = runcmd(cmd, args)
-    info(f"QQRXQ runcmd INSERT returned {result=}")
+    hits = list()
+    result = runcmd(cmd, args, hits=hits)
+    info(f"QQRXQ runcmd INSERT returned {result=}, {hits=}")
 
-    cmd = "END TRANSACTION"
-    info("QQRXQ ending transaction")
-    result = runcmd(cmd)
-    info(f"QQRXQ runcmd END TRANSACTION returned {result=}")
+    # cmd = "END TRANSACTION"
+    # info("QQRXQ ending transaction")
+    # hits = list()
+    # result = runcmd(cmd, hits=hits)
+    # info(f"QQRXQ runcmd END TRANSACTION returned {result=}, {hits=}")
 
     return result
 
@@ -464,15 +483,19 @@ def runcmd(cmd: str, args: list = None, hits: list = None) -> bool:
     result = None
 
     conn = connectdb()
-    debug(f"{conn=}, {type(conn)=}")
-    # debug(f"{cmd=}")
-    # debug(f"{args=}")
-    # debug(f"{dir(conn)=}")
+    info(f"{conn=}, {type(conn)=}")
+    info(f"{cmd=}")
+    info(f"{args=}")
+    info(f"{hits=}")
 
     cursor = conn.cursor()
     debug(f"cursor = {cursor}")
 
     try:
+        xcmd = "BEGIN TRANSACTION"
+        r = cursor.execute(xcmd)
+        info(f"{xcmd} : returned {r}")
+
         if args is None:
             debug("invoking cursor.execute() without args")
             r = cursor.execute(cmd)
@@ -490,6 +513,10 @@ def runcmd(cmd: str, args: list = None, hits: list = None) -> bool:
                     debug(f"  {row=}")
                     hits.append(list(row))
         result = True
+
+        ycmd = "END TRANSACTION"
+        r = cursor.execute(ycmd)
+        info(f"{ycmd} : returned {r}")
 
     except sqlite3.IntegrityError as err:
         error(str(err))
@@ -577,6 +604,19 @@ def tableexists():
     debug(f"tableexists() returning {result}")
     return result
 
+def updatehashtable(fname, md5):
+    """Update the SQLite File Table"""
+
+    cmd = f"UPDATE {table_name} SET md5='{md5}', moddate={int(getmoddate(fname))} WHERE fname = '{fname}'"
+    info(f"update command = {cmd}")
+
+    hits = list()
+    result = runcmd(cmd, hits=hits)  # , args)
+    info(f"QQRXQ runcmd UPDATE returned {result=}, {hits=}")
+
+    return result
+
+
 
 def main():
     """Main function - does all of the control logic"""
@@ -598,7 +638,8 @@ def main():
         createhashtable()
         createhashtableidx()
 
-    runfilechanges()
+    any_changes = runfilechanges()
+    info(f"main: {any_changes=}")
 
 
 if __name__ == "__main__":
