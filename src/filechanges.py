@@ -260,7 +260,7 @@ def createhashtableidx() -> None:
         )
 
     create_index("fname")
-    create_index("md5")
+    # create_index("md5")
 
 
 def getbasefile() -> str:
