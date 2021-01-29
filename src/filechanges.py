@@ -7,8 +7,6 @@ import pprint
 import re
 import sqlite3
 
-from functools import lru_cache
-
 #
 # constants
 #
@@ -18,12 +16,19 @@ from functools import lru_cache
 #
 conn = None
 
-global cfg_file_name, db_file_name, table_name, flds, exts
+global cfg_file_name, db_file_name, table_name, flds, exts, counters
 cfg_file_name = None
 db_file_name = None
 table_name = "status"
 flds = None
 exts = None
+counters = {
+    'folders': 0,
+    'checked': 0,
+    'skipped': 0,
+    'changed': 0,
+    'unchanged': 0,
+}
 
 #
 # do some basic initial setup
@@ -86,28 +91,36 @@ def trim_to_none(inp_value):
 def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
     """Checks for files changes"""
     trace(f"enter: {folder=}, {excludes=}")
+
+    global counters
+
     changed = False
-    info("=" * 100)
-    info(f'checking dir "{folder}"')
-    need_to_commit = False
+    debug("=" * 100)
+    debug(f'checking dir "{folder}"')
+    counters['folders'] += 1
+
     for subdir, dirs, files in os.walk(folder):
         for fname in files:
+            counters['checked'] += 1
+
             origin = os.path.join(subdir, fname)
-            info("-" * 100)
-            info(f'checking file "{origin}"')
+            debug("-" * 100)
+            debug(f'checking file "{origin}"')
             if not os.path.isfile(origin):
-                info(f'skipping non-file "{origin}"')
+                debug(f'skipping non-file "{origin}"')
+                counters['skipped'] += 1
             else:
                 # Get file extension and check if it is not excluded
                 ext = getfileext(origin)
-                info(f'file extension is "{ext}"')
+                debug(f'file extension is "{ext}"')
 
                 if len(ext) == 0:
-                    info(f'will process file "{origin}"')
+                    debug(f'will process file "{origin}"')
                 elif ext not in excludes:
-                    info(f'will process file "{origin}" with extension "{ext}"')
+                    debug(f'will process file "{origin}" with extension "{ext}"')
                 else:
                     debug(f'skipping file "{origin}" with excluded extension "{ext}"')
+                    counters['skipped'] += 1
                     continue
 
                 # check to see if the file already exists in the table - we do
@@ -115,72 +128,37 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
 
                 hits = list()
                 file_in_table = is_file_in_table(origin, hits=hits)
-                info(f"QQRXQ {origin=} {file_in_table=}")
-                info(f"QQRXQ     {hits=}")
-                info(f"QQRXQ     {type(hits)=}")
+                debug(f"QQRXQ {origin=} {file_in_table=}")
+                debug(f"QQRXQ     {hits=}")
+                debug(f"QQRXQ     {type(hits)=}")
                 if len(hits) > 0:
                     if len(hits[0]) == 2:
-                        info(f"QQRXQ      {hits[0][0]=}")
-                        info(f"QQRXQ      {hits[0][1]=}")
+                        debug(f"QQRXQ      {hits[0][0]=}")
+                        debug(f"QQRXQ      {hits[0][1]=}")
                         md5_val_from_db = hits[0][1]
-                # info(f"QQRXQ     {hits[0]=}")
-                # info(f"QQRXQ     {type(hits[0])=}")
+                # debug(f"QQRXQ     {hits[0]=}")
+                # debug(f"QQRXQ     {type(hits[0])=}")
 
                 cur_md5_val = md5short(origin)
-                info(f"QQRXQ {origin=} {cur_md5_val=}")
+                debug(f"QQRXQ {origin=} {cur_md5_val=}")
 
                 if not file_in_table:
                     r = inserthashtable(origin, cur_md5_val)
-                    info(f"QQRXQ {origin=} {cur_md5_val=} inserthashtable returned {r=}")
-                    need_to_commit = True
+                    debug(f"QQRXQ {origin=} {cur_md5_val=} inserthashtable returned {r=}")
+                    changed = True
+                    counters['changed'] += 1
                 elif cur_md5_val == md5_val_from_db:
-                    info(f"QQRXQ UP-TO-DATE: {origin=} {cur_md5_val=} {md5_val_from_db=}")
+                    debug(f"QQRXQ UP-TO-DATE: {origin=} {cur_md5_val=} {md5_val_from_db=}")
+                    counters['unchanged'] += 1
                 else:
-                    info(f"QQRXQ NEED-TO-UPDATE: {origin=} {cur_md5_val=} {md5_val_from_db=}")
+                    debug(f"QQRXQ NEED-TO-UPDATE: {origin=} {cur_md5_val=} {md5_val_from_db=}")
                     r = updatehashtable(origin, cur_md5_val)
-                    info(f"QQRXQ {origin=} {cur_md5_val=} updatehashtable returned {r=}")
-                    need_to_commit = True
-
-                # # Get the file’s md5 hash
-                # hash = md5short(origin)
-                # debug(f"        calculated file MD5 hash as {hash}")
-                # add_to_report = False
-                # debug(f"        checking if file already in hash table")
-                # if not md5indb(origin):
-                #     debug(f"            file not in hash table - will add")
-                #
-                #     # Get the file’s md5 hash
-                #     hash = md5short(origin)
-                #     debug(f"        calculated file MD5 hash as {hash}")
-                #
-                #     r = inserthashtable(origin, hash)
-                #     debug(f"            file not in hash table - added ({r})")
-                #     add_to_report = True
-                # elif not haschanged(origin, hash):
-                #     debug(
-                #         f"            file in hash table and MD5 unchanged - not update"
-                #     )
-                # else:
-                #     debug(
-                #         f"            file in hash table and MD5 *has* changed - will update"
-                #     )
-                #     r = updatehashtable(origin, hash)
-                #     debug(
-                #         f"            file in hash table and MD5 *has* changed - updated ({r})"
-                #     )
-                #     add_to_report = True
-                #     # If the file has changed, add it to the Excel report
-                #     debug(f"file in hash table and MD5 *has* changed - updated")
-                # if add_to_report:
-                #     info(f'Will add file "{origin}" to report')
-                #     changed = True
-        # if need_to_commit:
-        #     hits = list()
-        #     r = runcmd("commit", hits=hits)
-        #     info(f"{need_to_commit=}, {r=}, {hits=}")
+                    debug(f"QQRXQ {origin=} {cur_md5_val=} updatehashtable returned {r=}")
+                    changed = True
+                    counters['changed'] += 1
     debug("=" * 100)
-    debug(f"returning {need_to_commit=} {changed=}")
-    return need_to_commit
+    debug(f"returning {changed=}")
+    return changed
 
 
 def connectdb() -> sqlite3.Connection:
@@ -256,7 +234,7 @@ def createhashtable() -> None:
     if not result:
         fatal(f'Failed to create table "{table_name}"')
 
-    info(f'created table "{table_name}"')
+    debug(f'created table "{table_name}"')
 
 
 def createhashtableidx() -> None:
@@ -277,7 +255,7 @@ def createhashtableidx() -> None:
                 f'Failed to create index "{index_name}" on column "{column_name}" of table "{table_name}"'
             )
 
-        info(
+        debug(
             f'created index "{index_name}" on column "{column_name}" of table "{table_name}"'
         )
 
@@ -319,24 +297,24 @@ def inserthashtable(fname:str, md5:str) -> bool:
     """Insert into the SQLite File Table"""
 
     # cmd = "BEGIN TRANSACTION"
-    # info("QQRXQ beginning transaction")
+    # debug("QQRXQ beginning transaction")
     # hits = list()
     # result = runcmd(cmd, hits=hits)
-    # info(f"QQRXQ runcmd BEGIN TRANSACTION returned {result=}, {hits=}")
+    # debug(f"QQRXQ runcmd BEGIN TRANSACTION returned {result=}, {hits=}")
 
     cmd = f"INSERT INTO {table_name} (fname, md5, moddate) VALUES (?, ?, ?)"
     args = (fname, md5, int(getmoddate(fname)))
 
-    info(f"QQRXQ running SQL INSERT command for {md5=} {fname=}")
+    debug(f"QQRXQ running SQL INSERT command for {md5=} {fname=}")
     hits = list()
     result = runcmd(cmd, args, hits=hits)
-    info(f"QQRXQ runcmd INSERT returned {result=}, {hits=}")
+    debug(f"QQRXQ runcmd INSERT returned {result=}, {hits=}")
 
     # cmd = "END TRANSACTION"
-    # info("QQRXQ ending transaction")
+    # debug("QQRXQ ending transaction")
     # hits = list()
     # result = runcmd(cmd, hits=hits)
-    # info(f"QQRXQ runcmd END TRANSACTION returned {result=}, {hits=}")
+    # debug(f"QQRXQ runcmd END TRANSACTION returned {result=}, {hits=}")
 
     return result
 
@@ -352,7 +330,7 @@ def is_file_in_table(fname: str, hits: list=None) -> bool:
         args = (fname,)
         debug(f"{args=}")
         r = corecursor(conn, query, args, hits)
-        info(f"{r=}, {hits=}")
+        debug(f"{r=}, {hits=}")
         if r and len(hits) == 1:
             result = True
     except sqlite3.OperationalError as err:
@@ -483,10 +461,10 @@ def runcmd(cmd: str, args: list = None, hits: list = None) -> bool:
     result = None
 
     conn = connectdb()
-    info(f"{conn=}, {type(conn)=}")
-    info(f"{cmd=}")
-    info(f"{args=}")
-    info(f"{hits=}")
+    debug(f"{conn=}, {type(conn)=}")
+    debug(f"{cmd=}")
+    debug(f"{args=}")
+    debug(f"{hits=}")
 
     cursor = conn.cursor()
     debug(f"cursor = {cursor}")
@@ -494,7 +472,7 @@ def runcmd(cmd: str, args: list = None, hits: list = None) -> bool:
     try:
         xcmd = "BEGIN TRANSACTION"
         r = cursor.execute(xcmd)
-        info(f"{xcmd} : returned {r}")
+        debug(f"{xcmd} : returned {r}")
 
         if args is None:
             debug("invoking cursor.execute() without args")
@@ -516,7 +494,7 @@ def runcmd(cmd: str, args: list = None, hits: list = None) -> bool:
 
         ycmd = "END TRANSACTION"
         r = cursor.execute(ycmd)
-        info(f"{ycmd} : returned {r}")
+        debug(f"{ycmd} : returned {r}")
 
     except sqlite3.IntegrityError as err:
         error(str(err))
@@ -537,6 +515,8 @@ def runcmd(cmd: str, args: list = None, hits: list = None) -> bool:
 def runfilechanges(ws: object = None) -> bool:
     trace(f"enter: {ws=}")
 
+    global counters
+
     #
     # read in and parse the config file
     #
@@ -546,21 +526,21 @@ def runfilechanges(ws: object = None) -> bool:
     assert flds is not None
     assert exts is not None
 
-    info(f'the configuration was loaded from file "{cfg_file_name}"')
-    info(f"discovered {len(flds)} dirs and {len(exts)} extensions")
+    debug(f'the configuration was loaded from file "{cfg_file_name}"')
+    debug(f"discovered {len(flds)} dirs and {len(exts)} extensions")
 
     if len(flds) == 0:
-        info(f"no directories to be scanned")
+        debug(f"no directories to be scanned")
         return False
 
     changed = False
     wid = len(str(len(flds)-1))
     for i, fld in enumerate(flds, start=1):
         # Invoke the function that checks each folder for file changes
-        info(f"Processing directory {i:{wid}} of {len(flds)}: \"{fld}\"")
+        debug(f"Processing directory {i:{wid}} of {len(flds)}: \"{fld}\"")
 
         r = checkfilechanges(fld, exts, ws)
-        info(f"checkfilechanges(...) returned {r=}")
+        debug(f"checkfilechanges(...) returned {r=}")
 
         if r:
             changed = r
@@ -608,11 +588,11 @@ def updatehashtable(fname, md5):
     """Update the SQLite File Table"""
 
     cmd = f"UPDATE {table_name} SET md5='{md5}', moddate={int(getmoddate(fname))} WHERE fname = '{fname}'"
-    info(f"update command = {cmd}")
+    debug(f"update command = {cmd}")
 
     hits = list()
     result = runcmd(cmd, hits=hits)  # , args)
-    info(f"QQRXQ runcmd UPDATE returned {result=}, {hits=}")
+    debug(f"QQRXQ runcmd UPDATE returned {result=}, {hits=}")
 
     return result
 
@@ -622,24 +602,36 @@ def main():
     """Main function - does all of the control logic"""
     trace("enter")
 
-    global cfg_file_name, db_file_name
+    global cfg_file_name, db_file_name, counters
 
     basename = getbasefile()
     cfg_file_name = basename + ".ini"
     db_file_name = basename + ".db"
 
+    print(f"The configuration file  name is \"{cfg_file_name}\"")
+    print(f"The database      file  name is \"{db_file_name}\"")
+    print(f"The database      table name is \"{table_name}\"")
+
     #
     # check that the main table exists, and if not create it
     #
     if tableexists():
-        info(f'table "{table_name}" exists')
+        debug(f'table "{table_name}" exists')
     else:
-        info(f'table "{table_name}" does not exist and will be created')
+        debug(f'table "{table_name}" does not exist and will be created')
         createhashtable()
         createhashtableidx()
 
     any_changes = runfilechanges()
-    info(f"main: {any_changes=}")
+    debug(f"main: {any_changes=}")
+
+    print("=== SUMMARY STATISTICS ===")
+    print(f"Number of folders checked   = {counters['folders']}")
+    print(f"Number of files   checked   = {counters['checked']}")
+    print(f"Number of files   skipped   = {counters['skipped']}")
+    print(f"Number of files   changed   = {counters['changed']}")
+    print(f"Number of files   unchanged = {counters['unchanged']}")
+    print(f"Files changed flag          = {any_changes}")
 
 
 if __name__ == "__main__":
