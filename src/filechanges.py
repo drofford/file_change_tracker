@@ -1,3 +1,4 @@
+import hashlib
 import inspect
 import logging as _logging_
 import os
@@ -86,19 +87,20 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
     """Checks for files changes"""
     trace(f"enter: {folder=}, {excludes=}")
     changed = False
-    debug("=" * 100)
-    debug(f'checking dir "{folder}"')
+    info("=" * 100)
+    info(f'checking dir "{folder}"')
+    need_to_commit = False
     for subdir, dirs, files in os.walk(folder):
         for fname in files:
             origin = os.path.join(subdir, fname)
-            debug("-" * 100)
-            debug(f'checking file "{origin}"')
+            info("-" * 100)
+            info(f'checking file "{origin}"')
             if not os.path.isfile(origin):
-                debug(f'skipping non-file "{origin}"')
+                info(f'skipping non-file "{origin}"')
             else:
                 # Get file extension and check if it is not excluded
                 ext = getfileext(origin)
-                debug(f'file extension is "{ext}"')
+                info(f'file extension is "{ext}"')
 
                 if len(ext) == 0:
                     info(f'will process file "{origin}"')
@@ -107,6 +109,21 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
                 else:
                     debug(f'skipping file "{origin}" with excluded extension "{ext}"')
                     continue
+
+                # check to see if the file already exists in the table - we do
+                # this by computing the MD5 and looking it up in the index
+
+                hits = list()
+                file_in_table = is_file_in_table(origin, hits=hits)
+                info(f"QQRXQ {origin=} {file_in_table=} {hits=}")
+
+                cur_md5_val = md5short(origin)
+                info(f"QQRXQ {origin=} {cur_md5_val=}")
+
+                if not file_in_table:
+                    r = inserthashtable(origin, cur_md5_val)
+                    info(f"QQRXQ {origin=} {cur_md5_val=} inserthashtable returned {r=}")
+                    need_to_commit = True
 
                 # # Get the file’s md5 hash
                 # hash = md5short(origin)
@@ -141,6 +158,10 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
                 # if add_to_report:
                 #     info(f'Will add file "{origin}" to report')
                 #     changed = True
+        # if need_to_commit:
+        #     hits = list()
+        #     r = runcmd("commit", hits=hits)
+        #     info(f"{need_to_commit=}, {r=}, {hits=}")
     debug("=" * 100)
     debug(f"returning {changed=}")
     return changed
@@ -259,7 +280,69 @@ def getfileext(fname: str) -> str:
     Extension does NOT include the dot. Dotfiles like ".bashrc" are handled as
     expected, with the filename = ".bashrc" and the extension as "".
     """
+    trace(f"enter: fname = {fname}")
     return os.path.splitext(os.path.basename(fname))[1]
+
+def getmoddate(fname: str) -> object:
+    """Get file modified date"""
+    try:
+        debug(f"{fname=}")
+        mtime = os.path.getmtime(fname)
+        debug(f"{type(mtime)=}, {mtime=}")
+        return mtime
+    except FileNotFoundError as ex:
+        debug(f'no such file: "{fname}"')
+
+    except Exception as ex:
+        error(f'caught exception of type {type(ex)}: "{ex}", program abending')
+        exit(1)
+
+    return None
+
+def inserthashtable(fname:str, md5:str) -> bool:
+    """Insert into the SQLite File Table"""
+
+    cmd = "BEGIN TRANSACTION"
+    info("QQRXQ beginning transaction")
+    result = runcmd(cmd)
+    info(f"QQRXQ runcmd BEGIN TRANSACTION returned {result=}")
+
+    cmd = f"INSERT INTO {table_name} (fname, md5, moddate) VALUES (?, ?, ?)"
+    args = (fname, md5, int(getmoddate(fname)))
+
+    info(f"QQRXQ running SQL INSERT command for {md5=} {fname=}")
+    result = runcmd(cmd, args)
+    info(f"QQRXQ runcmd INSERT returned {result=}")
+
+    cmd = "END TRANSACTION"
+    info("QQRXQ ending transaction")
+    result = runcmd(cmd)
+    info(f"QQRXQ runcmd END TRANSACTION returned {result=}")
+
+    return result
+
+def is_file_in_table(fname: str, hits: list=None) -> bool:
+    """Checks if md5 hash tag exists in the SQLite DB"""
+
+    conn = connectdb()
+
+    result = False
+    try:
+        query = f"SELECT fname, md5 FROM {table_name} WHERE fname = ?"
+        debug(f"{query=}")
+        args = (fname,)
+        debug(f"{args=}")
+        r = corecursor(conn, query, args, hits)
+        info(f"{r=}, {hits=}")
+        if r and len(hits) == 1:
+            result = True
+    except sqlite3.OperationalError as err:
+        error(str(err))
+    finally:
+        conn.close()
+
+    debug(f"{result=}")
+    return result
 
 def loadflds() -> tuple:
     trace(f"entry")
@@ -360,6 +443,19 @@ def loadflds() -> tuple:
     assert cfg_file_name is not None
     flds, exts = readconfig()
 
+def md5short(fname):
+    """Get md5 file hash"""
+
+    data = open(fname, "rb").read()
+    # debug(f'read {len(data)} {type(data)} from "{fname}"')
+
+    md = hashlib.new("md5")
+    md.update(data)
+    md5val = md.hexdigest()
+
+    # debug(f'MD5 for "{fname=}" is {md5val}')
+
+    return md5val
 
 def runcmd(cmd: str, args: list = None, hits: list = None) -> bool:
     """Run a specific command on the SQLite DB"""
