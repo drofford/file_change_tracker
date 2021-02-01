@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import hashlib
 import inspect
 import logging as _logging_
@@ -7,7 +8,9 @@ import os
 import os.path
 import pprint
 import re
+import sys
 import sqlite3
+import time
 
 #
 # constants
@@ -24,13 +27,7 @@ db_file_name = None
 table_name = "status"
 flds = None
 exts = None
-counters = {
-    'folders': 0,
-    'checked': 0,
-    'skipped': 0,
-    'changed': 0,
-    'unchanged': 0,
-}
+counters = { }
 
 #
 # do some basic initial setup
@@ -43,35 +40,35 @@ _logging_.basicConfig(
 #
 # basic logging helpers
 #
-def trace(msg):
+def trace(msg: str) -> None:
     f = inspect.currentframe()
     _logging_.debug(f"TRACE : {f.f_back.f_code.co_name}[{f.f_back.f_lineno}]: {msg}")
 
 
-def debug(msg):
+def debug(msg: str) -> None:
     f = inspect.currentframe()
     _logging_.debug(f"{f.f_back.f_code.co_name}[{f.f_back.f_lineno}]: {msg}")
 
 
-def info(msg):
+def info(msg: str) -> None:
     # f = inspect.currentframe()
     # _logging_.info(msg)
     f = inspect.currentframe()
     _logging_.info(f"{f.f_back.f_code.co_name}[{f.f_back.f_lineno}]: {msg}")
 
 
-def error(msg):
+def error(msg: str) -> None:
     f = inspect.currentframe()
     _logging_.error(f"{f.f_back.f_code.co_name}[{f.f_back.f_lineno}]: {msg}")
 
 
-def fatal(msg):
+def fatal(msg: str) -> None:
     f = inspect.currentframe()
     _logging_.error(f"{f.f_back.f_code.co_name}[{f.f_back.f_lineno}]: {msg}")
     exit(1)
 
 
-def trim_to_none(inp_value):
+def trim_to_none(inp_value: str) -> str:
     trace(f"{inp_value=}")
 
     out_value = None
@@ -90,6 +87,7 @@ def trim_to_none(inp_value):
 # ============================================
 #
 
+
 def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
     """Checks for files changes"""
     trace(f"enter: {folder=}, {excludes=}")
@@ -99,18 +97,18 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
     changed = False
     debug("=" * 100)
     debug(f'checking dir "{folder}"')
-    counters['folders'] += 1
+    counters["folders"] += 1
 
     for subdir, dirs, files in os.walk(folder):
         for fname in files:
-            counters['checked'] += 1
+            counters["checked"] += 1
 
-            origin = os.path.join(subdir, fname)
+            origin = os.path.realpath(os.path.join(subdir, fname))
             debug("-" * 100)
             debug(f'checking file "{origin}"')
             if not os.path.isfile(origin):
                 debug(f'skipping non-file "{origin}"')
-                counters['skipped'] += 1
+                counters["skipped"] += 1
             else:
                 # Get file extension and check if it is not excluded
                 ext = getfileext(origin)
@@ -122,7 +120,7 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
                     debug(f'will process file "{origin}" with extension "{ext}"')
                 else:
                     debug(f'skipping file "{origin}" with excluded extension "{ext}"')
-                    counters['skipped'] += 1
+                    counters["skipped"] += 1
                     continue
 
                 # check to see if the file already exists in the table - we do
@@ -146,18 +144,26 @@ def checkfilechanges(folder: str, excludes: list, ws: object) -> bool:
 
                 if not file_in_table:
                     r = inserthashtable(origin, cur_md5_val)
-                    debug(f"QQRXQ {origin=} {cur_md5_val=} inserthashtable returned {r=}")
+                    debug(
+                        f"QQRXQ {origin=} {cur_md5_val=} inserthashtable returned {r=}"
+                    )
                     changed = True
-                    counters['changed'] += 1
+                    counters["changed"] += 1
                 elif cur_md5_val == md5_val_from_db:
-                    debug(f"QQRXQ UP-TO-DATE: {origin=} {cur_md5_val=} {md5_val_from_db=}")
-                    counters['unchanged'] += 1
+                    debug(
+                        f"QQRXQ UP-TO-DATE: {origin=} {cur_md5_val=} {md5_val_from_db=}"
+                    )
+                    counters["unchanged"] += 1
                 else:
-                    debug(f"QQRXQ NEED-TO-UPDATE: {origin=} {cur_md5_val=} {md5_val_from_db=}")
+                    debug(
+                        f"QQRXQ NEED-TO-UPDATE: {origin=} {cur_md5_val=} {md5_val_from_db=}"
+                    )
                     r = updatehashtable(origin, cur_md5_val)
-                    debug(f"QQRXQ {origin=} {cur_md5_val=} updatehashtable returned {r=}")
+                    debug(
+                        f"QQRXQ {origin=} {cur_md5_val=} updatehashtable returned {r=}"
+                    )
                     changed = True
-                    counters['changed'] += 1
+                    counters["changed"] += 1
     debug("=" * 100)
     debug(f"returning {changed=}")
     return changed
@@ -270,6 +276,7 @@ def getbasefile() -> str:
     trace("enter")
     return os.path.splitext(os.path.basename(__file__))[0]
 
+
 def getfileext(fname: str) -> str:
     """Get the file name extension.
 
@@ -279,7 +286,8 @@ def getfileext(fname: str) -> str:
     trace(f"enter: fname = {fname}")
     return os.path.splitext(os.path.basename(fname))[1]
 
-def getmoddate(fname: str) -> object:
+
+def getmoddate(fname: str) -> int:
     """Get file modified date"""
     try:
         debug(f"{fname=}")
@@ -295,14 +303,9 @@ def getmoddate(fname: str) -> object:
 
     return None
 
-def inserthashtable(fname:str, md5:str) -> bool:
-    """Insert into the SQLite File Table"""
 
-    # cmd = "BEGIN TRANSACTION"
-    # debug("QQRXQ beginning transaction")
-    # hits = list()
-    # result = runcmd(cmd, hits=hits)
-    # debug(f"QQRXQ runcmd BEGIN TRANSACTION returned {result=}, {hits=}")
+def inserthashtable(fname: str, md5: str) -> bool:
+    """Insert into the SQLite File Table"""
 
     cmd = f"INSERT INTO {table_name} (fname, md5, moddate) VALUES (?, ?, ?)"
     args = (fname, md5, int(getmoddate(fname)))
@@ -312,15 +315,10 @@ def inserthashtable(fname:str, md5:str) -> bool:
     result = runcmd(cmd, args, hits=hits)
     debug(f"QQRXQ runcmd INSERT returned {result=}, {hits=}")
 
-    # cmd = "END TRANSACTION"
-    # debug("QQRXQ ending transaction")
-    # hits = list()
-    # result = runcmd(cmd, hits=hits)
-    # debug(f"QQRXQ runcmd END TRANSACTION returned {result=}, {hits=}")
-
     return result
 
-def is_file_in_table(fname: str, hits: list=None) -> bool:
+
+def is_file_in_table(fname: str, hits: list = None) -> bool:
     """Checks if md5 hash tag exists in the SQLite DB"""
 
     conn = connectdb()
@@ -342,6 +340,7 @@ def is_file_in_table(fname: str, hits: list=None) -> bool:
 
     debug(f"{result=}")
     return result
+
 
 def loadflds() -> tuple:
     trace(f"entry")
@@ -433,8 +432,6 @@ def loadflds() -> tuple:
         debug(f"exts map = \n{pprint.pformat(exts_map)}")
         debug("=" * 78)
 
-        # return dirs_and_exts_map
-        # result sorted(list(dirs_map.keys())), sorted(list(exts_map.keys()))
         a = sorted(list(dirs_map.keys()))
         b = sorted(list(exts_map.keys()))
         return a, b
@@ -442,7 +439,8 @@ def loadflds() -> tuple:
     assert cfg_file_name is not None
     flds, exts = readconfig()
 
-def md5short(fname):
+
+def md5short(fname: str) -> str:
     """Get md5 file hash"""
 
     data = open(fname, "rb").read()
@@ -455,6 +453,52 @@ def md5short(fname):
     # debug(f'MD5 for "{fname=}" is {md5val}')
 
     return md5val
+
+
+DEFAULT_LOOP_DELAY_TIME_SECS = 3
+
+
+def parsecmdline(argv: list) -> object:
+    parser = argparse.ArgumentParser(
+        description="""Program to monitor for changed files."""
+    )
+    parser.add_argument(
+        "-l",
+        "--loop",
+        action="store_true",
+        help="""
+    if specified, the program will just loop and loop checking for
+    changed files until interrupted with a Control-C
+    """,
+    )
+    parser.add_argument(
+        "-t",
+        "--time",
+        type=int,
+        help=f"""
+    if the -l/--loop option is specified, the -t/--time option can be used
+    to specify the delay in seconds between each loop. The default value
+    is {DEFAULT_LOOP_DELAY_TIME_SECS} seconds
+    """,
+    )
+
+    args = parser.parse_args(argv)
+    debug(f"{args=}")
+
+    if args.time is None:
+        if args.loop:
+            args.time = DEFAULT_LOOP_DELAY_TIME_SECS
+    elif not args.loop:
+        parser.error(
+            "the -t/--time option is only valid in conjunction with the -l/--loop option"
+        )
+    elif args.time < 0:
+        parser.error(
+            f"invalid delay time {args.time}: only values >= 0 are allowed for the delay time"
+        )
+
+    return args
+
 
 def runcmd(cmd: str, args: list = None, hits: list = None) -> bool:
     """Run a specific command on the SQLite DB"""
@@ -518,6 +562,13 @@ def runfilechanges(ws: object = None) -> bool:
     trace(f"enter: {ws=}")
 
     global counters
+    counters = {
+        "folders": 0,
+        "checked": 0,
+        "skipped": 0,
+        "changed": 0,
+        "unchanged": 0,
+    }
 
     #
     # read in and parse the config file
@@ -536,10 +587,10 @@ def runfilechanges(ws: object = None) -> bool:
         return False
 
     changed = False
-    wid = len(str(len(flds)-1))
+    wid = len(str(len(flds) - 1))
     for i, fld in enumerate(flds, start=1):
         # Invoke the function that checks each folder for file changes
-        debug(f"Processing directory {i:{wid}} of {len(flds)}: \"{fld}\"")
+        debug(f'Processing directory {i:{wid}} of {len(flds)}: "{fld}"')
 
         r = checkfilechanges(fld, exts, ws)
         debug(f"checkfilechanges(...) returned {r=}")
@@ -551,7 +602,7 @@ def runfilechanges(ws: object = None) -> bool:
     return changed
 
 
-def tableexists():
+def tableexists() -> bool:
     """Checks if a SQLite DB Table exists"""
     trace("enter")
 
@@ -586,7 +637,8 @@ def tableexists():
     debug(f"tableexists() returning {result}")
     return result
 
-def updatehashtable(fname, md5):
+
+def updatehashtable(fname: str, md5: str) -> bool:
     """Update the SQLite File Table"""
 
     cmd = f"UPDATE {table_name} SET md5='{md5}', moddate={int(getmoddate(fname))} WHERE fname = '{fname}'"
@@ -599,20 +651,33 @@ def updatehashtable(fname, md5):
     return result
 
 
-
-def main():
+def main(argv: list) -> None:
     """Main function - does all of the control logic"""
     trace("enter")
 
     global cfg_file_name, db_file_name, counters
 
+    def execute(args):
+        any_changes = runfilechanges()
+        debug(f"main: {any_changes=}")
+
+        print("=== SUMMARY STATISTICS ===")
+        print(f"Number of folders checked   = {counters['folders']}")
+        print(f"Number of files   checked   = {counters['checked']}")
+        print(f"Number of files   skipped   = {counters['skipped']}")
+        print(f"Number of files   changed   = {counters['changed']}")
+        print(f"Number of files   unchanged = {counters['unchanged']}")
+        print(f"Files changed flag          = {any_changes}")
+
     basename = getbasefile()
     cfg_file_name = basename + ".ini"
     db_file_name = basename + ".db"
 
-    print(f"The configuration file  name is \"{cfg_file_name}\"")
-    print(f"The database      file  name is \"{db_file_name}\"")
-    print(f"The database      table name is \"{table_name}\"")
+    args = parsecmdline(argv[1:])
+
+    print(f'The configuration file  name is "{cfg_file_name}"')
+    print(f'The database      file  name is "{db_file_name}"')
+    print(f'The database      table name is "{table_name}"')
 
     #
     # check that the main table exists, and if not create it
@@ -624,17 +689,23 @@ def main():
         createhashtable()
         createhashtableidx()
 
-    any_changes = runfilechanges()
-    debug(f"main: {any_changes=}")
-
-    print("=== SUMMARY STATISTICS ===")
-    print(f"Number of folders checked   = {counters['folders']}")
-    print(f"Number of files   checked   = {counters['checked']}")
-    print(f"Number of files   skipped   = {counters['skipped']}")
-    print(f"Number of files   changed   = {counters['changed']}")
-    print(f"Number of files   unchanged = {counters['unchanged']}")
-    print(f"Files changed flag          = {any_changes}")
+    if args.loop:
+        num_loops = 0
+        info(f"program looping with a delay time of {args.time} seconds is starting")
+        while True:
+            num_loops += 1
+            try:
+                info(f"program loop {num_loops}")
+                execute(args)
+                if args.time > 0:
+                    debug(f"pausing for {args.time} seconds before starting loop again")
+                    time.sleep(args.time)
+            except KeyboardInterrupt as e:
+                info("program looping has been interrupted")
+                break
+    else:
+        execute(args)
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv)
